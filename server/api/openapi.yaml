@@ -1,0 +1,1230 @@
+openapi: 3.1.0
+info:
+  title: PODBORpro — REST-интерфейс
+  version: 1.0.0-draft
+  description: |
+    Договор между сервером, клиентской частью и тестированием.
+    Из этого файла создаются типы Go (`make generate`) и TypeScript (`npm run generate:types`),
+    а сервер отвечает заглушками из `example` для адресов, которые ещё не реализованы.
+
+    После закрепления v1 (09.10) файл меняется только через запрос на слияние
+    с пометкой «меняет договор», одобренный клиентской частью и тестировщиком.
+
+    ## Общие правила
+
+    | Правило | Значение |
+    |---|---|
+    | Имена полей | `snake_case`: `salary_from`, а не `salaryFrom` |
+    | Даты | Строка ISO 8601 в UTC: `"2026-10-11T12:00:00Z"` |
+    | Постраничная выдача | `?page=1&per_page=20`, ответ `{"items": [...], "total": N}`, `per_page` не больше 100 |
+    | Ошибки | Всегда `{"error": {"code": "...", "message": "..."}}` |
+    | Вход | Заголовок `Authorization: Bearer <токен>` |
+    | Пустые значения | `null`, а не отсутствующее поле и не `0` |
+
+    Чужой ресурс и несуществующий выглядят одинаково — **404**, никогда не 403.
+
+servers:
+  - url: /api/v1
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: service
+  - name: auth
+  - name: profile
+  - name: portfolio
+  - name: vacancies
+  - name: feed
+  - name: letters
+  - name: applications
+  - name: admin
+
+paths:
+  /health:
+    get:
+      tags: [service]
+      operationId: getHealth
+      summary: Проверка, что сервер жив
+      security: []
+      responses:
+        "200":
+          description: Сервер и база доступны
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Health" }
+              example: { status: ok }
+        "503":
+          description: База данных недоступна
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Health" }
+              example: { status: unavailable }
+
+  # ---------------------------------------------------------------- auth
+  /auth/register:
+    post:
+      tags: [auth]
+      operationId: register
+      summary: Регистрация
+      description: |
+        Создаёт пользователя и пустой профиль в одной транзакции, сразу выдаёт токен.
+        Почта приводится к нижнему регистру. Пароль — от 8 символов, имя — не пустое.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RegisterRequest" }
+            example: { email: ivan@mail.ru, password: s3cret-pass, full_name: Иван Петров }
+      responses:
+        "201":
+          description: Пользователь создан
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TokenResponse" }
+              example:
+                access_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.stub.stub
+                token_type: Bearer
+                expires_at: "2026-10-12T12:00:00Z"
+                user: { id: 42, email: ivan@mail.ru, full_name: Иван Петров, is_admin: false }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "409":
+          description: Почта уже зарегистрирована (код `email_taken`)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+              example: { error: { code: email_taken, message: Эта почта уже зарегистрирована } }
+
+  /auth/login:
+    post:
+      tags: [auth]
+      operationId: login
+      summary: Вход, в ответ — токен доступа
+      description: |
+        Токен действует 24 часа, продления нет. При неверной почте и при неверном пароле
+        ответ одинаковый — по нему нельзя узнать, зарегистрирован ли человек.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LoginRequest" }
+            example: { email: ivan@mail.ru, password: s3cret-pass }
+      responses:
+        "200":
+          description: Вход выполнен
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TokenResponse" }
+              example:
+                access_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.stub.stub
+                token_type: Bearer
+                expires_at: "2026-10-12T12:00:00Z"
+                user: { id: 42, email: ivan@mail.ru, full_name: Иван Петров, is_admin: false }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401":
+          description: Неверная почта или пароль (код `invalid_credentials`)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+              example: { error: { code: invalid_credentials, message: Неверная почта или пароль } }
+
+  # ---------------------------------------------------------------- profile
+  /me:
+    get:
+      tags: [profile]
+      operationId: getMe
+      summary: Свой профиль
+      description: |
+        Клиентская часть опрашивает этот адрес раз в 5 секунд, пока `profile.resume_status = "processing"`.
+      responses:
+        "200":
+          description: Пользователь и его профиль
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Me" }
+              example: &meExample
+                id: 42
+                email: ivan@mail.ru
+                full_name: Иван Петров
+                is_admin: false
+                profile:
+                  target_title: Разработчик на Go
+                  target_grade: junior
+                  cities: [Москва]
+                  work_formats: [remote, hybrid]
+                  salary_from: 120000
+                  tone: neutral
+                  resume_status: none
+                  skills: [{ id: 12, name: Go }, { id: 31, name: PostgreSQL }]
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    patch:
+      tags: [profile]
+      operationId: patchMe
+      summary: Изменить желаемую должность, город, зарплату, тон писем
+      description: |
+        Меняются только переданные поля. Непереданное поле остаётся прежним.
+        Стереть значение (сделать `null`) через этот адрес нельзя.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PatchMeRequest" }
+            example: { salary_from: 150000, cities: [Москва, Санкт-Петербург] }
+      responses:
+        "200":
+          description: Профиль после изменения
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Me" }
+              example: *meExample
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /skills:
+    get:
+      tags: [profile]
+      operationId: searchSkills
+      summary: Поиск по справочнику навыков
+      description: Для подсказок при вводе навыков. Ищет по названию и синонимам, без учёта регистра.
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: Начало названия навыка, от 1 символа
+          schema: { type: string, minLength: 1, maxLength: 100 }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 50, default: 10 }
+      responses:
+        "200":
+          description: Найденные навыки, самые популярные первыми
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Skill" }
+              example: [{ id: 12, name: Python }, { id: 57, name: PyTorch }]
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  # ---------------------------------------------------------------- portfolio
+  /portfolio/resume:
+    post:
+      tags: [portfolio]
+      operationId: uploadResume
+      summary: Загрузить файл резюме
+      description: |
+        Файл сохраняется сразу, разбор ставится в очередь. Ход разбора — в `GET /me`,
+        поле `profile.resume_status`. Новый файл заменяет старый.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: PDF или DOCX, не больше 10 МБ
+      responses:
+        "202":
+          description: Файл принят, разбор поставлен в очередь
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ResumeUploadResponse" }
+              example: { resume_status: processing }
+        "400":
+          description: Не тот формат файла (код `unsupported_file`)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+              example: { error: { code: unsupported_file, message: Нужен файл PDF или DOCX } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "413":
+          description: Файл больше 10 МБ (код `file_too_large`)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+              example: { error: { code: file_too_large, message: Файл больше 10 МБ } }
+
+  /portfolio/github:
+    post:
+      tags: [portfolio]
+      operationId: connectGithub
+      summary: Подключить профиль GitHub по имени пользователя
+      description: Загружает открытые репозитории как проекты портфолио. Повторный вызов обновляет их.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/GithubConnectRequest" }
+            example: { username: ivan-petrov }
+      responses:
+        "200":
+          description: Проекты загружены
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PortfolioItemList" }
+              example:
+                items:
+                  - id: 7
+                    title: telegram-bot
+                    summary: Бот для заказа пиццы на Go
+                    url: https://github.com/ivan-petrov/telegram-bot
+                    source: github
+                    skills: [{ id: 12, name: Go }]
+                    created_at: "2026-10-05T10:00:00Z"
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404":
+          description: Нет такого пользователя GitHub (код `github_user_not_found`)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+              example: { error: { code: github_user_not_found, message: Пользователь GitHub не найден } }
+        "503": { $ref: "#/components/responses/Unavailable" }
+
+  /portfolio/items:
+    get:
+      tags: [portfolio]
+      operationId: listPortfolioItems
+      summary: Список проектов в портфолио
+      responses:
+        "200":
+          description: Все проекты пользователя, новые первыми
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PortfolioItemList" }
+              example:
+                items:
+                  - &portfolioItemExample
+                    id: 7
+                    title: Агрегатор вакансий
+                    summary: Сервер на Go, PostgreSQL, Docker
+                    url: null
+                    source: manual
+                    skills: [{ id: 12, name: Go }, { id: 31, name: PostgreSQL }]
+                    created_at: "2026-10-05T10:00:00Z"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    post:
+      tags: [portfolio]
+      operationId: createPortfolioItem
+      summary: Добавить проект вручную
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PortfolioItemCreate" }
+            example: { title: Агрегатор вакансий, summary: "Сервер на Go, PostgreSQL, Docker", skill_ids: [12, 31] }
+      responses:
+        "201":
+          description: Проект создан
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PortfolioItem" }
+              example: *portfolioItemExample
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /portfolio/items/{id}:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    patch:
+      tags: [portfolio]
+      operationId: patchPortfolioItem
+      summary: Изменить проект
+      description: Меняются только переданные поля.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PortfolioItemPatch" }
+            example: { summary: "Сервер на Go, PostgreSQL, pgvector" }
+      responses:
+        "200":
+          description: Проект после изменения
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PortfolioItem" }
+              example: *portfolioItemExample
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [portfolio]
+      operationId: deletePortfolioItem
+      summary: Удалить проект
+      responses:
+        "204":
+          description: Проект удалён
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  # ---------------------------------------------------------------- vacancies
+  /vacancies:
+    get:
+      tags: [vacancies]
+      operationId: listVacancies
+      summary: Общий поиск по вакансиям с фильтрами
+      description: |
+        Фильтр `salary_from` не отсекает вакансии без зарплаты: они идут ниже остальных.
+        Дубли из разных источников показываются один раз.
+      parameters:
+        - name: q
+          in: query
+          description: Слова из названия или описания
+          schema: { type: string, maxLength: 200 }
+        - name: city
+          in: query
+          schema: { type: string }
+        - name: grade
+          in: query
+          schema: { $ref: "#/components/schemas/Grade" }
+        - name: work_format
+          in: query
+          schema: { $ref: "#/components/schemas/WorkFormat" }
+        - name: salary_from
+          in: query
+          schema: { type: integer, minimum: 0 }
+        - name: skill_id
+          in: query
+          description: Номера навыков; вакансия должна требовать все перечисленные
+          style: form
+          explode: true
+          schema:
+            type: array
+            items: { type: integer, format: int64 }
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PerPage"
+      responses:
+        "200":
+          description: Страница вакансий
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/VacancyPage" }
+              example:
+                items:
+                  - &vacancyExample
+                    id: 4821
+                    title: Разработчик на Go
+                    company: Ромашка
+                    city: Москва
+                    grade: junior
+                    work_format: hybrid
+                    salary_from: 180000
+                    salary_to: null
+                    currency: RUB
+                    skills: [{ id: 12, name: Go }, { id: 31, name: PostgreSQL }, { id: 40, name: Docker }]
+                    source: headhunter
+                    url: https://hh.ru/vacancy/4821
+                    published_at: "2026-10-03T09:15:00Z"
+                total: 1
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /vacancies/{id}:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    get:
+      tags: [vacancies]
+      operationId: getVacancy
+      summary: Одна вакансия
+      responses:
+        "200":
+          description: Вакансия с полным описанием
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/VacancyDetails" }
+              example:
+                <<: *vacancyExample
+                description: Ищем разработчика в команду платёжного шлюза...
+                also_on: [{ source: superjob, url: https://superjob.ru/vakansii/4821.html }]
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /feed:
+    get:
+      tags: [feed]
+      operationId: getFeed
+      summary: Персональная лента с оценкой и её разбором
+      description: |
+        Если профиль ещё не обработан или сервис моделей недоступен, лента строится
+        по навыкам и фильтрам без смысловой близости, и `simplified = true`.
+        Тогда `parts.similarity = null`.
+      parameters:
+        - name: city
+          in: query
+          description: Если не задан — города из профиля
+          schema: { type: string }
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PerPage"
+      responses:
+        "200":
+          description: Страница ленты
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FeedResponse" }
+              example:
+                items:
+                  - vacancy: *vacancyExample
+                    score: 0.83
+                    explanation:
+                      matched_skills: [Go, PostgreSQL, Docker]
+                      missing_skills: [Kubernetes]
+                      grade_fit: match
+                      parts: { similarity: 0.79, skills: 0.75, grade: 1.0, freshness: 0.95 }
+                total: 20
+                simplified: false
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  # ---------------------------------------------------------------- letters
+  /vacancies/{id}/letters:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    post:
+      tags: [letters]
+      operationId: createLetter
+      summary: Составить черновик письма к вакансии
+      description: |
+        Синхронный запрос, ответ — до 30 секунд. Если отклика на вакансию ещё нет,
+        он создаётся в статусе `draft`. Фрагменты, которых нет в портфолио,
+        перечислены в `unverified` (позиции в символах, `end` не включается).
+        Письмо никогда не отправляется само.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LetterCreate" }
+            example: { tone: friendly }
+      responses:
+        "201":
+          description: Черновик составлен
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Letter" }
+              example: &letterExample
+                id: 15
+                application_id: 9
+                vacancy_id: 4821
+                content: Здравствуйте! Меня заинтересовала вакансия разработчика на Go. Я работал с Kubernetes...
+                version: 1
+                unverified: [{ start: 120, end: 130, text: Kubernetes }]
+                updated_at: "2026-10-05T10:00:00Z"
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503":
+          description: |
+            Языковая модель недоступна (`letter_service_unavailable`) или после двух попыток
+            не удалось составить письмо без выдуманных фактов (`letter_generation_failed`)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+              example: { error: { code: letter_service_unavailable, message: Составление писем временно недоступно } }
+
+  /letters/{id}:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    get:
+      tags: [letters]
+      operationId: getLetter
+      summary: Письмо (последняя версия)
+      responses:
+        "200":
+          description: Письмо
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Letter" }
+              example: *letterExample
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      tags: [letters]
+      operationId: patchLetter
+      summary: Сохранить правки
+      description: |
+        Создаёт новую версию. `version` — номер версии, которую правил человек:
+        если с тех пор появилась более новая, ответ 409 `version_conflict`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LetterPatch" }
+            example: { content: Здравствуйте! Меня заинтересовала вакансия..., version: 1 }
+      responses:
+        "200":
+          description: Сохранённая версия
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Letter" }
+              example:
+                <<: *letterExample
+                content: Здравствуйте! Меня заинтересовала вакансия...
+                version: 2
+                unverified: []
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Письмо уже изменено в другом окне (код `version_conflict`)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+              example: { error: { code: version_conflict, message: "Письмо изменилось, обновите страницу" } }
+
+  /letters/{id}/versions:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    get:
+      tags: [letters]
+      operationId: listLetterVersions
+      summary: Все версии письма, новые первыми
+      responses:
+        "200":
+          description: Версии
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LetterVersionList" }
+              example:
+                items:
+                  - { version: 2, content: Здравствуйте! Меня заинтересовала вакансия..., author: user, created_at: "2026-10-05T10:07:00Z" }
+                  - { version: 1, content: Здравствуйте! Меня заинтересовала вакансия разработчика на Go..., author: model, created_at: "2026-10-05T10:00:00Z" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  # ---------------------------------------------------------------- applications
+  /applications:
+    get:
+      tags: [applications]
+      operationId: listApplications
+      summary: Мои отклики
+      parameters:
+        - name: status
+          in: query
+          schema: { $ref: "#/components/schemas/ApplicationStatus" }
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PerPage"
+      responses:
+        "200":
+          description: Страница откликов, последние изменённые первыми
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApplicationPage" }
+              example:
+                items:
+                  - &applicationExample
+                    id: 9
+                    vacancy: *vacancyExample
+                    status: draft
+                    letter_id: 15
+                    created_at: "2026-10-05T10:00:00Z"
+                    updated_at: "2026-10-05T10:00:00Z"
+                total: 1
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    post:
+      tags: [applications]
+      operationId: createApplication
+      summary: Создать отклик
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ApplicationCreate" }
+            example: { vacancy_id: 4821 }
+      responses:
+        "201":
+          description: Отклик создан
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Application" }
+              example:
+                <<: *applicationExample
+                letter_id: null
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Отклик на эту вакансию уже есть (код `application_exists`)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+              example: { error: { code: application_exists, message: Отклик на эту вакансию уже создан } }
+
+  /applications/{id}:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    patch:
+      tags: [applications]
+      operationId: patchApplication
+      summary: Сменить статус отклика
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ApplicationPatch" }
+            example: { status: sent }
+      responses:
+        "200":
+          description: Отклик после изменения
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Application" }
+              example:
+                <<: *applicationExample
+                status: sent
+                updated_at: "2026-10-06T08:30:00Z"
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  # ---------------------------------------------------------------- admin
+  /admin/collection-runs:
+    get:
+      tags: [admin]
+      operationId: listCollectionRuns
+      summary: Журнал прогонов сбора (только администратор)
+      x-admin: true
+      parameters:
+        - name: source
+          in: query
+          schema: { type: string }
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PerPage"
+      responses:
+        "200":
+          description: Прогоны, новые первыми
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CollectionRunPage" }
+              example:
+                items:
+                  - id: 301
+                    source: headhunter
+                    status: success
+                    started_at: "2026-10-05T03:00:00Z"
+                    finished_at: "2026-10-05T03:04:12Z"
+                    fetched: 1200
+                    created: 85
+                    updated: 310
+                    errors: 0
+                    error_message: null
+                total: 1
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /admin/data-quality:
+    get:
+      tags: [admin]
+      operationId: getDataQuality
+      summary: Показатели качества данных (только администратор)
+      x-admin: true
+      responses:
+        "200":
+          description: Показатели по всем вакансиям и по источникам
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DataQuality" }
+              example:
+                total_vacancies: 15230
+                salary_share: 0.62
+                skills_share: 0.91
+                duplicates_share: 0.18
+                by_source:
+                  - { source: headhunter, vacancies: 9800, last_success_at: "2026-10-05T03:04:12Z" }
+                  - { source: superjob, vacancies: 5430, last_success_at: null }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Токен из `/auth/login` или `/auth/register`, действует 24 часа.
+
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema: { type: integer, format: int64, minimum: 1 }
+    Page:
+      name: page
+      in: query
+      description: Номер страницы, с 1
+      schema: { type: integer, minimum: 1, default: 1 }
+    PerPage:
+      name: per_page
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+
+  responses:
+    ValidationError:
+      description: Запрос составлен неверно (код `validation_error` или `invalid_json`)
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          example: { error: { code: validation_error, message: Пароль должен быть не короче 8 символов } }
+    Unauthorized:
+      description: Нет токена, он просрочен или подделан — нужно войти заново (код `unauthorized`)
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          example: { error: { code: unauthorized, message: Нужно войти } }
+    Forbidden:
+      description: Адрес только для администратора (код `forbidden`)
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          example: { error: { code: forbidden, message: Недостаточно прав } }
+    NotFound:
+      description: Ресурса нет или он чужой — ответ одинаковый (код `not_found`)
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          example: { error: { code: not_found, message: Не найдено } }
+    Unavailable:
+      description: Внешний сервис временно недоступен (код `service_unavailable`)
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          example: { error: { code: service_unavailable, message: "Сервис временно недоступен, попробуйте позже" } }
+
+  schemas:
+    # ---------- общие
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              description: Машинный код, по нему клиентская часть решает, что делать
+            message:
+              type: string
+              description: Текст для человека, показывается как есть
+
+    Health:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string, enum: [ok, unavailable] }
+
+    Grade:
+      type: string
+      enum: [junior, middle, senior]
+
+    WorkFormat:
+      type: string
+      enum: [office, remote, hybrid]
+
+    Tone:
+      type: string
+      enum: [formal, neutral, friendly]
+
+    ResumeStatus:
+      type: string
+      enum: [none, processing, ready, failed]
+
+    Skill:
+      type: object
+      required: [id, name]
+      properties:
+        id: { type: integer, format: int64 }
+        name: { type: string }
+
+    # ---------- вход
+    RegisterRequest:
+      type: object
+      required: [email, password, full_name]
+      properties:
+        email: { type: string, description: "Почта, регистр не важен" }
+        password: { type: string, minLength: 8 }
+        full_name: { type: string, minLength: 1 }
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string }
+        password: { type: string }
+
+    User:
+      type: object
+      required: [id, email, full_name, is_admin]
+      properties:
+        id: { type: integer, format: int64 }
+        email: { type: string }
+        full_name: { type: string }
+        is_admin: { type: boolean }
+
+    TokenResponse:
+      type: object
+      required: [access_token, token_type, expires_at, user]
+      properties:
+        access_token: { type: string }
+        token_type: { type: string, enum: [Bearer] }
+        expires_at: { type: string, format: date-time }
+        user: { $ref: "#/components/schemas/User" }
+
+    # ---------- профиль
+    Profile:
+      type: object
+      required: [target_title, target_grade, cities, work_formats, salary_from, tone, resume_status, skills]
+      properties:
+        target_title: { type: [string, "null"] }
+        target_grade:
+          type: [string, "null"]
+          enum: [junior, middle, senior, null]
+        cities:
+          type: array
+          items: { type: string }
+        work_formats:
+          type: array
+          items: { $ref: "#/components/schemas/WorkFormat" }
+        salary_from: { type: [integer, "null"], minimum: 0 }
+        tone: { $ref: "#/components/schemas/Tone" }
+        resume_status: { $ref: "#/components/schemas/ResumeStatus" }
+        skills:
+          type: array
+          items: { $ref: "#/components/schemas/Skill" }
+
+    Me:
+      type: object
+      required: [id, email, full_name, is_admin, profile]
+      properties:
+        id: { type: integer, format: int64 }
+        email: { type: string }
+        full_name: { type: string }
+        is_admin: { type: boolean }
+        profile: { $ref: "#/components/schemas/Profile" }
+
+    PatchMeRequest:
+      type: object
+      description: Все поля необязательны; меняются только переданные.
+      properties:
+        full_name: { type: string, minLength: 1 }
+        target_title: { type: string }
+        target_grade: { $ref: "#/components/schemas/Grade" }
+        cities:
+          type: array
+          items: { type: string }
+        work_formats:
+          type: array
+          items: { $ref: "#/components/schemas/WorkFormat" }
+        salary_from: { type: integer, minimum: 0 }
+        tone: { $ref: "#/components/schemas/Tone" }
+        skill_ids:
+          type: array
+          description: Полный список навыков профиля (заменяет прежний)
+          items: { type: integer, format: int64 }
+
+    # ---------- портфолио
+    ResumeUploadResponse:
+      type: object
+      required: [resume_status]
+      properties:
+        resume_status: { $ref: "#/components/schemas/ResumeStatus" }
+
+    GithubConnectRequest:
+      type: object
+      required: [username]
+      properties:
+        username: { type: string, minLength: 1, maxLength: 39 }
+
+    PortfolioItem:
+      type: object
+      required: [id, title, summary, url, source, skills, created_at]
+      properties:
+        id: { type: integer, format: int64 }
+        title: { type: string }
+        summary: { type: string }
+        url: { type: [string, "null"] }
+        source: { type: string, enum: [manual, github, resume] }
+        skills:
+          type: array
+          items: { $ref: "#/components/schemas/Skill" }
+        created_at: { type: string, format: date-time }
+
+    PortfolioItemList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/PortfolioItem" }
+
+    PortfolioItemCreate:
+      type: object
+      required: [title, summary]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 200 }
+        summary: { type: string, maxLength: 2000 }
+        url: { type: string }
+        skill_ids:
+          type: array
+          items: { type: integer, format: int64 }
+
+    PortfolioItemPatch:
+      type: object
+      properties:
+        title: { type: string, minLength: 1, maxLength: 200 }
+        summary: { type: string, maxLength: 2000 }
+        url: { type: string }
+        skill_ids:
+          type: array
+          items: { type: integer, format: int64 }
+
+    # ---------- вакансии и лента
+    Vacancy:
+      type: object
+      required: [id, title, company, city, grade, work_format, salary_from, salary_to, currency, skills, source, url, published_at]
+      properties:
+        id: { type: integer, format: int64 }
+        title: { type: string }
+        company: { type: string }
+        city: { type: [string, "null"] }
+        grade:
+          type: [string, "null"]
+          enum: [junior, middle, senior, null]
+        work_format:
+          type: [string, "null"]
+          enum: [office, remote, hybrid, null]
+        salary_from:
+          type: [integer, "null"]
+          description: "`null` — зарплата не указана. Никогда не `0` и никогда не угадывается"
+        salary_to: { type: [integer, "null"] }
+        currency: { type: [string, "null"], description: "Код ISO 4217: RUB, USD, EUR" }
+        skills:
+          type: array
+          items: { $ref: "#/components/schemas/Skill" }
+        source: { type: string, description: "Источник основной копии: headhunter, superjob, ..." }
+        url: { type: string, description: Ссылка на вакансию у источника }
+        published_at: { type: string, format: date-time }
+
+    VacancyDetails:
+      allOf:
+        - $ref: "#/components/schemas/Vacancy"
+        - type: object
+          required: [description, also_on]
+          properties:
+            description: { type: string }
+            also_on:
+              type: array
+              description: Та же вакансия у других источников (склеенные дубли)
+              items: { $ref: "#/components/schemas/VacancyCopy" }
+
+    VacancyCopy:
+      type: object
+      required: [source, url]
+      properties:
+        source: { type: string }
+        url: { type: string }
+
+    VacancyPage:
+      type: object
+      required: [items, total]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/Vacancy" }
+        total: { type: integer }
+
+    ScoreParts:
+      type: object
+      description: Четыре части формулы оценки, каждая от 0 до 1
+      required: [similarity, skills, grade, freshness]
+      properties:
+        similarity:
+          type: [number, "null"]
+          format: double
+          minimum: 0
+          maximum: 1
+          description: Смысловая близость; `null` в упрощённой ленте
+        skills: { type: number, format: double, minimum: 0, maximum: 1, description: Покрытие навыков }
+        grade: { type: number, format: double, minimum: 0, maximum: 1, description: Совпадение уровня }
+        freshness: { type: number, format: double, minimum: 0, maximum: 1, description: Свежесть вакансии }
+
+    ScoreExplanation:
+      type: object
+      required: [matched_skills, missing_skills, grade_fit, parts]
+      properties:
+        matched_skills:
+          type: array
+          items: { type: string }
+        missing_skills:
+          type: array
+          items: { type: string }
+        grade_fit:
+          type: string
+          enum: [match, lower, higher, unknown]
+          description: Уровень вакансии относительно желаемого
+        parts: { $ref: "#/components/schemas/ScoreParts" }
+
+    FeedItem:
+      type: object
+      required: [vacancy, score, explanation]
+      properties:
+        vacancy: { $ref: "#/components/schemas/Vacancy" }
+        score: { type: number, format: double, minimum: 0, maximum: 1 }
+        explanation: { $ref: "#/components/schemas/ScoreExplanation" }
+
+    FeedResponse:
+      type: object
+      required: [items, total, simplified]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/FeedItem" }
+        total: { type: integer }
+        simplified:
+          type: boolean
+          description: "`true` — подбор упрощён (без смысловой близости), клиентская часть показывает пометку"
+
+    # ---------- письма
+    TextFragment:
+      type: object
+      required: [start, end, text]
+      properties:
+        start: { type: integer, minimum: 0, description: "Позиция первого символа (в символах, не байтах)" }
+        end: { type: integer, minimum: 0, description: Позиция после последнего символа }
+        text: { type: string }
+
+    LetterCreate:
+      type: object
+      properties:
+        tone:
+          $ref: "#/components/schemas/Tone"
+          description: Если не задан — тон из профиля
+
+    Letter:
+      type: object
+      required: [id, application_id, vacancy_id, content, version, unverified, updated_at]
+      properties:
+        id: { type: integer, format: int64 }
+        application_id: { type: integer, format: int64 }
+        vacancy_id: { type: integer, format: int64 }
+        content: { type: string }
+        version: { type: integer, minimum: 1 }
+        unverified:
+          type: array
+          description: Фрагменты, которых нет в портфолио — подсвечиваются в редакторе
+          items: { $ref: "#/components/schemas/TextFragment" }
+        updated_at: { type: string, format: date-time }
+
+    LetterPatch:
+      type: object
+      required: [content, version]
+      properties:
+        content: { type: string, minLength: 1, maxLength: 10000 }
+        version: { type: integer, minimum: 1, description: "Версия, которую правил человек" }
+
+    LetterVersion:
+      type: object
+      required: [version, content, author, created_at]
+      properties:
+        version: { type: integer }
+        content: { type: string }
+        author: { type: string, enum: [model, user] }
+        created_at: { type: string, format: date-time }
+
+    LetterVersionList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/LetterVersion" }
+
+    # ---------- отклики
+    ApplicationStatus:
+      type: string
+      enum: [draft, sent, interview, offer, rejected]
+
+    Application:
+      type: object
+      required: [id, vacancy, status, letter_id, created_at, updated_at]
+      properties:
+        id: { type: integer, format: int64 }
+        vacancy: { $ref: "#/components/schemas/Vacancy" }
+        status: { $ref: "#/components/schemas/ApplicationStatus" }
+        letter_id: { type: [integer, "null"], format: int64 }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    ApplicationPage:
+      type: object
+      required: [items, total]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/Application" }
+        total: { type: integer }
+
+    ApplicationCreate:
+      type: object
+      required: [vacancy_id]
+      properties:
+        vacancy_id: { type: integer, format: int64 }
+
+    ApplicationPatch:
+      type: object
+      required: [status]
+      properties:
+        status: { $ref: "#/components/schemas/ApplicationStatus" }
+
+    # ---------- администратор
+    CollectionRun:
+      type: object
+      required: [id, source, status, started_at, finished_at, fetched, created, updated, errors, error_message]
+      properties:
+        id: { type: integer, format: int64 }
+        source: { type: string }
+        status: { type: string, enum: [running, success, partial, failed] }
+        started_at: { type: string, format: date-time }
+        finished_at: { type: [string, "null"], format: date-time }
+        fetched: { type: integer }
+        created: { type: integer }
+        updated: { type: integer }
+        errors: { type: integer }
+        error_message: { type: [string, "null"] }
+
+    CollectionRunPage:
+      type: object
+      required: [items, total]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/CollectionRun" }
+        total: { type: integer }
+
+    DataQuality:
+      type: object
+      required: [total_vacancies, salary_share, skills_share, duplicates_share, by_source]
+      properties:
+        total_vacancies: { type: integer }
+        salary_share: { type: number, format: double, minimum: 0, maximum: 1, description: Доля вакансий с указанной зарплатой }
+        skills_share: { type: number, format: double, minimum: 0, maximum: 1, description: Доля вакансий с распознанными навыками }
+        duplicates_share: { type: number, format: double, minimum: 0, maximum: 1, description: Доля склеенных дублей }
+        by_source:
+          type: array
+          items: { $ref: "#/components/schemas/SourceQuality" }
+
+    SourceQuality:
+      type: object
+      required: [source, vacancies, last_success_at]
+      properties:
+        source: { type: string }
+        vacancies: { type: integer }
+        last_success_at: { type: [string, "null"], format: date-time }

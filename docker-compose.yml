@@ -1,0 +1,45 @@
+# Вся система одной командой: docker compose up --build
+# Сервер: http://localhost:8080  (REST-интерфейс — /api/v1, клиентская часть — /)
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: podbor
+      POSTGRES_PASSWORD: podbor
+      POSTGRES_DB: podbor
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U podbor -d podbor"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  ml:
+    build: ./ml
+    # Снаружи недоступен: к сервису моделей ходит только сервер по внутренней сети.
+    expose:
+      - "8000"
+
+  server:
+    build: ./server
+    depends_on:
+      db:
+        condition: service_healthy
+      ml:
+        condition: service_started
+    environment:
+      DATABASE_URL: postgres://podbor:podbor@db:5432/podbor?sslmode=disable
+      # Для своей машины годится значение по умолчанию; на общем сервере задать в .env.
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-dev-secret-dev-secret-dev}
+      ML_URL: http://ml:8000
+    ports:
+      - "8080:8080"
+    volumes:
+      # Готовая сборка клиентской части (npm run build в папке web).
+      - ./web/dist:/app/web:ro
+
+volumes:
+  pgdata:
