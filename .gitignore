@@ -1,0 +1,5 @@
+.env
+_env
+*.md
+.DS_Storeweb/dist/*
+!web/dist/.gitkeep
