@@ -2,7 +2,7 @@
 -- +goose Up
 CREATE TABLE jobs (
     id          bigserial PRIMARY KEY,
-    kind        text        NOT NULL,
+    kind        text        NOT NULL,                 -- 'collect', 'normalize', 'embed', 'parse_resume'
     payload     jsonb       NOT NULL DEFAULT '{}',
     status      text        NOT NULL DEFAULT 'queued'
                 CHECK (status IN ('queued', 'running', 'done', 'failed')),
@@ -20,18 +20,20 @@ CREATE TABLE sources (
     title     text    NOT NULL,
     is_active boolean NOT NULL DEFAULT true
 );
-INSERT INTO sources (code, title) VALUES ('hh', 'HeadHunter');
+INSERT INTO sources (code, title) VALUES ('headhunter', 'HeadHunter');
 
 CREATE TABLE collection_runs (
-    id          bigserial PRIMARY KEY,
-    source_id   smallint    NOT NULL REFERENCES sources(id),
-    started_at  timestamptz NOT NULL DEFAULT now(),
-    finished_at timestamptz,
-    status      text        NOT NULL DEFAULT 'running'
-                CHECK (status IN ('running', 'success', 'failed')),
-    fetched     integer     NOT NULL DEFAULT 0,
-    saved       integer     NOT NULL DEFAULT 0,
-    error       text
+    id            bigserial PRIMARY KEY,
+    source_id     smallint    NOT NULL REFERENCES sources(id),
+    started_at    timestamptz NOT NULL DEFAULT now(),
+    finished_at   timestamptz,
+    status        text        NOT NULL DEFAULT 'running'
+                  CHECK (status IN ('running', 'success', 'partial', 'failed')),
+    fetched       integer     NOT NULL DEFAULT 0,
+    created       integer     NOT NULL DEFAULT 0,
+    updated       integer     NOT NULL DEFAULT 0,
+    errors        integer     NOT NULL DEFAULT 0,
+    error_message text
 );
 
 CREATE TABLE vacancy_raw (
