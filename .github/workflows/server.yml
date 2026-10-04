@@ -1,0 +1,53 @@
+name: server
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  go:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: podbor
+          POSTGRES_PASSWORD: podbor
+          POSTGRES_DB: podbor
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U podbor -d podbor"
+          --health-interval 3s --health-timeout 3s --health-retries 20
+    env:
+      DATABASE_URL: postgres://podbor:podbor@localhost:5432/podbor?sslmode=disable
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: server/go.mod
+          cache-dependency-path: server/go.sum
+
+      - name: gofmt
+        run: test -z "$(gofmt -l .)" || (gofmt -l . && exit 1)
+
+      - name: go vet
+        run: go vet ./...
+
+      # Изменения схемы на пустой базе — до тестов, пока база действительно пустая.
+      - name: migrations on empty database
+        run: go run ./cmd/server -migrate-only
+
+      # Типы Go совпадают с описанием: если openapi.yaml поменяли, а make generate забыли — красная проверка.
+      - name: generated types are up to date
+        run: |
+          make generate
+          git diff --exit-code -- api/types.gen.go
+
+      - name: go test
+        env:
+          TEST_DATABASE_URL: ${{ env.DATABASE_URL }}
+        run: go test -race ./...

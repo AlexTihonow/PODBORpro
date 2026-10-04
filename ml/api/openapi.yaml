@@ -1,0 +1,218 @@
+openapi: 3.1.0
+info:
+  title: PODBORpro — внутренний интерфейс сервиса моделей
+  version: 0.1.0-draft
+  description: |
+    Черновик по таблице инженера по машинному обучению. Снаружи недоступен:
+    обращается только сервер на Go по внутренней сети Docker.
+    Пределы ожидания на стороне Go: /embed — 3 с, /letter — 30 с.
+
+servers:
+  - url: http://ml:8000
+
+paths:
+  /health:
+    get:
+      operationId: health
+      summary: Проверка, что сервис жив и модель загружена
+      description: Пока модель загружается (5–15 секунд), отвечает 503 со status = loading.
+      responses:
+        "200":
+          description: Готов
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Health" }
+              example: { status: ok, model: multilingual-e5-base, dim: 768 }
+        "503":
+          description: Модель ещё загружается
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Health" }
+              example: { status: loading, model: null, dim: null }
+
+  /embed:
+    post:
+      operationId: embed
+      summary: Векторы для списка текстов
+      description: |
+        `kind` нужен моделям вида e5: сервис сам добавит приставку `query: ` или `passage: `.
+        Серверу на Go не нужно знать об особенностях конкретной модели.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EmbedRequest" }
+            example: { texts: [Разработчик на Go, PostgreSQL], kind: passage }
+      responses:
+        "200":
+          description: Векторы в том же порядке, что и тексты
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EmbedResponse" }
+              example: { vectors: [[0.012, -0.034, 0.051], [0.007, 0.021, -0.016]], model: multilingual-e5-base, dim: 768 }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+
+  /resume/parse:
+    post:
+      operationId: parseResume
+      summary: Текст, навыки и проекты из файла резюме
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary, description: PDF или DOCX }
+      responses:
+        "200":
+          description: Разобранное резюме
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ParsedResume" }
+              example:
+                text: Иван Петров. Разработчик на Go...
+                skills: [Go, PostgreSQL]
+                projects: [{ title: Агрегатор вакансий, summary: "Сервер на Go, PostgreSQL" }]
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+
+  /letter:
+    post:
+      operationId: composeLetter
+      summary: Черновик сопроводительного письма
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LetterRequest" }
+            example:
+              vacancy: { title: Разработчик на Go, company: Ромашка, description: Ищем разработчика..., skills: [Go, Kubernetes] }
+              projects: [{ title: Агрегатор вакансий, summary: "Сервер на Go, PostgreSQL" }]
+              tone: neutral
+      responses:
+        "200":
+          description: Письмо и фрагменты, которых нет в проектах
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LetterResponse" }
+              example:
+                text: Здравствуйте! Меня заинтересовала вакансия разработчика на Go. Я работал с Kubernetes...
+                unverified: [{ start: 120, end: 130, text: Kubernetes }]
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+
+components:
+  responses:
+    BadRequest:
+      description: Неверный запрос
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          example: { error: { code: validation_error, message: Пустой список texts } }
+    Unavailable:
+      description: Модель не загружена или языковая модель недоступна
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          example: { error: { code: model_unavailable, message: Модель недоступна } }
+
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: { type: string }
+            message: { type: string }
+
+    Health:
+      type: object
+      required: [status, model, dim]
+      properties:
+        status: { type: string, enum: [ok, loading] }
+        model: { type: [string, "null"] }
+        dim: { type: [integer, "null"] }
+
+    EmbedRequest:
+      type: object
+      required: [texts, kind]
+      properties:
+        texts:
+          type: array
+          minItems: 1
+          maxItems: 64
+          items: { type: string }
+        kind: { type: string, enum: [query, passage] }
+
+    EmbedResponse:
+      type: object
+      required: [vectors, model, dim]
+      properties:
+        vectors:
+          type: array
+          items:
+            type: array
+            items: { type: number, format: float }
+        model: { type: string, description: Версия модели — хранится рядом с векторами }
+        dim: { type: integer }
+
+    Project:
+      type: object
+      required: [title, summary]
+      properties:
+        title: { type: string }
+        summary: { type: string }
+
+    ParsedResume:
+      type: object
+      required: [text, skills, projects]
+      properties:
+        text: { type: string }
+        skills:
+          type: array
+          items: { type: string }
+        projects:
+          type: array
+          items: { $ref: "#/components/schemas/Project" }
+
+    LetterRequest:
+      type: object
+      required: [vacancy, projects, tone]
+      properties:
+        vacancy:
+          type: object
+          required: [title, company, description, skills]
+          properties:
+            title: { type: string }
+            company: { type: string }
+            description: { type: string }
+            skills:
+              type: array
+              items: { type: string }
+        projects:
+          type: array
+          minItems: 1
+          maxItems: 3
+          items: { $ref: "#/components/schemas/Project" }
+        tone: { type: string, enum: [formal, neutral, friendly] }
+
+    LetterResponse:
+      type: object
+      required: [text, unverified]
+      properties:
+        text: { type: string }
+        unverified:
+          type: array
+          items:
+            type: object
+            required: [start, end, text]
+            properties:
+              start: { type: integer }
+              end: { type: integer }
+              text: { type: string }
