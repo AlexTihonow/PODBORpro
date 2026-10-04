@@ -3,3 +3,4 @@ _env
 *.md
 .DS_Storeweb/dist/*
 !web/dist/.gitkeep
+ml/research/download_models.py
