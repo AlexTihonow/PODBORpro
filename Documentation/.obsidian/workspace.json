@@ -1,0 +1,218 @@
+{
+  "main": {
+    "id": "b00808c1ae19c461",
+    "type": "split",
+    "children": [
+      {
+        "id": "7afccd26bcbf622a",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "33cc38d290b985a3",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "HISTORY/Волна 8. CP0 2026-09-05 15-51.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "Волна 8. CP0 2026-09-05 15-51"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "2be293ff51d42128",
+    "type": "split",
+    "children": [
+      {
+        "id": "41316c292806bf4f",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "cc18842b46e1b8c6",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-folder-closed",
+              "title": "Файловый менеджер"
+            }
+          },
+          {
+            "id": "272176ec50455f0e",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "Поиск"
+            }
+          },
+          {
+            "id": "126c9f4f11cdb4d0",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-bookmark",
+              "title": "Закладки"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "0c7187d98fafb9ad",
+    "type": "split",
+    "children": [
+      {
+        "id": "5ab0392e51cd3b58",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "4e9132acb9649f45",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "Обратные ссылки"
+            }
+          },
+          {
+            "id": "2d501fc967e34c75",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "Исходящие ссылки"
+            }
+          },
+          {
+            "id": "1b885aba0f6c76e9",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "Теги"
+            }
+          },
+          {
+            "id": "6e943152707a15b0",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "Все свойства"
+            }
+          },
+          {
+            "id": "501025b11159fe54",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "Структура"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Меню быстрого перехода": false,
+      "graph:Граф": false,
+      "canvas:Создать новый холст": false,
+      "daily-notes:Сегодняшняя заметка": false,
+      "templates:Вставить шаблон": false,
+      "command-palette:Открыть палитру команд": false,
+      "bases:Создать новую базу": false
+    }
+  },
+  "active": "cc18842b46e1b8c6",
+  "lastOpenFiles": [
+    "HISTORY/Волна 8. Центры вычислений 2026-09-05 16-17.md",
+    "HISTORY/Волна 8. Тяжёлая работа 2026-09-06 11-07.md",
+    "HISTORY/Волна 8. CP1 тяжёлой работы 2026-09-05 16-40.md",
+    "HISTORY/Волна 8. Разграничение зон 2026-09-05 15-16.md",
+    "HISTORY/Волна 7. Сведение 2026-09-05 13-29.md",
+    "HISTORY/Волна 8. CP0 2026-09-05 15-51.md",
+    "HISTORY/Глава IV. Пять модулей 2026-09-02 19-12.md",
+    "HISTORY/Глава III. Ревизия стека Go и htmx, групповые чаты 2026-08-28 19-55.md",
+    "HISTORY/Глава I. Техническая документация и архитектура 2026-08-28 19-14.md",
+    "HISTORY/Волны 0–5. Сводный отчёт 2026-09-04 12-01.md",
+    "HISTORY/Волна 7. Разграничение зон 2026-09-04 12-30.md",
+    "HISTORY/Волна 7. Глубина индекса 2026-09-04 14-00.md",
+    "HISTORY/Волна 7. Метки 2026-09-04 13-32.md",
+    "HISTORY/Волна 6. Разграничение зон 2026-09-03 08-45.md",
+    "HISTORY/Волна 6. Повестка 2026-09-03 13-33.md",
+    "HISTORY/Волна 6. Сведение 2026-09-03 14-03.md",
+    "HISTORY/Волна 6. Файлы 2026-09-03 14-10.md",
+    "HISTORY/Глава II. Решения по вопросам и принцип Low-UI 2026-08-28 19-38.md",
+    "HISTORY/Оглавление проекта 2026-08-28 20-07.md",
+    "Джун 1.md",
+    "HISTORY/Шрифты скинов 2026-09-01 15-00.md",
+    "HISTORY/Параллельная работа двух агентов 2026-08-23 18-30.md",
+    "HISTORY/Редизайн «Межень» и экран тем 2026-09-01 14-25.md",
+    "HISTORY/Волна 5. Полировка 2026-08-31 18-37.md",
+    "HISTORY/Волна 3. Сведение второй ветки 2026-08-30 14-55.md",
+    "HISTORY/Волна 0. Фундамент реализован 2026-08-29 11-55.md",
+    "vocab"
+  ]
+}
