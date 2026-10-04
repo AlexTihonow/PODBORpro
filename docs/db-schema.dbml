@@ -1,0 +1,154 @@
+Table users {
+  id bigint [pk, increment]
+  email text [not null, unique, note: 'уникален без учёта регистра (индекс по lower(email))']
+  password_hash text [not null]
+  full_name text [not null]
+  is_admin boolean [not null, default: false]
+  created_at timestamptz [not null]
+}
+
+Table profiles {
+  user_id bigint [pk, ref: - users.id]
+  target_title text
+  target_grade text [note: 'junior | middle | senior']
+  cities "text[]"
+  work_formats "text[]" [note: 'office | remote | hybrid']
+  salary_from integer
+  tone text [note: 'formal | neutral | friendly']
+  resume_status text [note: 'none | processing | ready | failed']
+  embedding vector(768) [note: 'вектор профиля для подбора, третья очередь']
+  updated_at timestamptz
+}
+
+Table skills {
+  id bigint [pk, increment]
+  canonical text [not null, unique]
+  category text
+  aliases "text[]" [note: 'синонимы из справочника']
+}
+
+Table profile_skills {
+  user_id bigint [ref: > users.id]
+  skill_id bigint [ref: > skills.id]
+  indexes { (user_id, skill_id) [pk] }
+}
+
+Table sources {
+  id smallint [pk, increment]
+  code text [not null, unique, note: 'headhunter, superjob, ...']
+  title text [not null]
+  is_active boolean [not null, default: true]
+}
+
+Table jobs {
+  id bigint [pk, increment]
+  kind text [not null, note: 'collect | normalize | embed | parse_resume']
+  payload jsonb
+  status text [note: 'queued | running | done | failed']
+  attempts integer
+  run_after timestamptz
+  last_error text
+  created_at timestamptz
+  updated_at timestamptz
+}
+
+Table collection_runs {
+  id bigint [pk, increment]
+  source_id smallint [not null, ref: > sources.id]
+  started_at timestamptz
+  finished_at timestamptz
+  status text [note: 'running | success | partial | failed']
+  fetched integer
+  created integer
+  updated integer
+  errors integer
+  error_message text
+}
+
+Table vacancy_raw {
+  id bigint [pk, increment]
+  source_id smallint [not null, ref: > sources.id]
+  external_id text [not null]
+  payload jsonb [not null, note: 'ответ источника как есть']
+  run_id bigint [ref: > collection_runs.id]
+  fetched_at timestamptz
+  processed_at timestamptz [note: 'NULL = ещё не приведена к единому виду']
+  indexes { (source_id, external_id) [unique] }
+}
+
+Table vacancies {
+  id bigint [pk, increment]
+  source_id smallint [not null, ref: > sources.id]
+  external_id text [not null]
+  canonical_id bigint [ref: > vacancies.id, note: 'NULL = основная копия; иначе дубль (для also_on)']
+  title text [not null]
+  company text [not null]
+  city text
+  grade text [note: 'junior | middle | senior | NULL']
+  work_format text [note: 'office | remote | hybrid | NULL']
+  salary_from integer [note: 'NULL = не указана, не 0']
+  salary_to integer
+  currency text [note: 'ISO 4217']
+  description text
+  url text [not null]
+  published_at timestamptz
+  embedding vector(768)
+  updated_at timestamptz
+  indexes { (source_id, external_id) [unique] }
+}
+
+Table vacancy_skills {
+  vacancy_id bigint [ref: > vacancies.id]
+  skill_id bigint [ref: > skills.id]
+  indexes { (vacancy_id, skill_id) [pk] }
+}
+
+Table portfolio_items {
+  id bigint [pk, increment]
+  user_id bigint [not null, ref: > users.id]
+  title text [not null]
+  summary text [not null]
+  url text
+  source text [note: 'manual | github | resume']
+  created_at timestamptz
+  indexes { (user_id, url) [unique, note: 'повторный импорт с GitHub обновляет'] }
+}
+
+Table portfolio_item_skills {
+  item_id bigint [ref: > portfolio_items.id]
+  skill_id bigint [ref: > skills.id]
+  indexes { (item_id, skill_id) [pk] }
+}
+
+Table resume_files {
+  user_id bigint [pk, ref: - users.id, note: 'новый файл заменяет старый']
+  filename text
+  storage_path text [note: 'диск или БД, решает старший (вопрос 5)']
+  uploaded_at timestamptz
+}
+
+Table applications {
+  id bigint [pk, increment]
+  user_id bigint [not null, ref: > users.id]
+  vacancy_id bigint [not null, ref: > vacancies.id]
+  status text [note: 'draft | sent | interview | offer | rejected']
+  created_at timestamptz
+  updated_at timestamptz
+  indexes { (user_id, vacancy_id) [unique] }
+}
+
+Table letters {
+  id bigint [pk, increment]
+  application_id bigint [not null, unique, ref: - applications.id]
+  created_at timestamptz
+}
+
+Table letter_versions {
+  letter_id bigint [ref: > letters.id]
+  version integer
+  content text [not null]
+  author text [note: 'model | user']
+  unverified jsonb [note: 'фрагменты без опоры в портфолио']
+  created_at timestamptz
+  indexes { (letter_id, version) [pk] }
+}
