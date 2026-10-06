@@ -1,0 +1,6 @@
+{
+  "error": {
+    "code": "github_user_not_found",
+    "message": "Пользователь GitHub не найден"
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "error": {
+    "code": "unsupported_file",
+    "message": "Нужен файл PDF или DOCX"
+  }
+}

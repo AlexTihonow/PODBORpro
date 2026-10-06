@@ -1,0 +1,17 @@
+{
+  "items": [
+    {
+      "id": 301,
+      "source": "headhunter",
+      "status": "success",
+      "started_at": "2026-10-05T03:00:00Z",
+      "finished_at": "2026-10-05T03:04:12Z",
+      "fetched": 1200,
+      "created": 85,
+      "updated": 310,
+      "errors": 0,
+      "error_message": null
+    }
+  ],
+  "total": 1
+}

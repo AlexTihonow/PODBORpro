@@ -1,0 +1,18 @@
+{
+  "total_vacancies": 15230,
+  "salary_share": 0.62,
+  "skills_share": 0.91,
+  "duplicates_share": 0.18,
+  "by_source": [
+    {
+      "source": "headhunter",
+      "vacancies": 9800,
+      "last_success_at": "2026-10-05T03:04:12Z"
+    },
+    {
+      "source": "superjob",
+      "vacancies": 5430,
+      "last_success_at": null
+    }
+  ]
+}

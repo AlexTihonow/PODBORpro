@@ -1,0 +1,6 @@
+{
+  "error": {
+    "code": "letter_service_unavailable",
+    "message": "Составление писем временно недоступно"
+  }
+}
