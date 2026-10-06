@@ -1,7 +1,5 @@
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { useParams } from "react-router-dom";
 
 import { ApiError } from "@/api/client";
 import { getLetter, listLetterVersions, patchLetter } from "@/api/letters";
@@ -13,74 +11,64 @@ import { ErrorState } from "@/components/ui/ErrorState";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Textarea } from "@/components/ui/Textarea";
 import { usePreviewState } from "@/hooks/usePreviewState";
+import { useRequest } from "@/hooks/useRequest";
 import { formatDate } from "@/lib/format";
 
 type SaveState = "idle" | "saving" | "saved" | "error";
 
-export function LetterEditorPage() {
-  const { id } = useParams();
+export function LetterEditorPage({ id }: { id: number }) {
   const preview = usePreviewState();
-  const letterId = Number(id);
-
-  const letterQuery = useQuery({
-    queryKey: ["letter", letterId],
-    queryFn: () => getLetter(letterId),
-    enabled: Number.isFinite(letterId),
-  });
-  const versionsQuery = useQuery({
-    queryKey: ["letter-versions", letterId],
-    queryFn: () => listLetterVersions(letterId),
-    enabled: Number.isFinite(letterId),
-  });
+  const { data: letter, error, loading, reload } = useRequest(() => getLetter(id), id);
+  const versions = useRequest(() => listLetterVersions(id), `versions-${id}`);
 
   const [content, setContent] = useState("");
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (letterQuery.data) setContent(letterQuery.data.content);
-  }, [letterQuery.data]);
+    if (letter) setContent(letter.content);
+  }, [letter]);
 
   if (preview === "loading") return <EditorSkeleton />;
 
-  if (preview === "error" || letterQuery.isError) {
+  if (preview === "error" || error) {
     return <ErrorState title="Письмо не найдено" message="Возможно, ссылка устарела." />;
   }
 
-  if (letterQuery.isLoading || !letterQuery.data) return <EditorSkeleton />;
-
-  const letter = letterQuery.data;
+  if (loading || !letter) return <EditorSkeleton />;
 
   async function handleSave() {
+    if (!letter) return;
     setSaveState("saving");
     setSaveError(null);
     try {
       await patchLetter(letter.id, content, letter.version);
       setSaveState("saved");
-      void letterQuery.refetch();
-    } catch (error) {
+      reload();
+    } catch (saveError) {
       setSaveState("error");
-      setSaveError(error instanceof ApiError ? error.message : "Не удалось сохранить письмо");
+      setSaveError(
+        saveError instanceof ApiError ? saveError.message : "Не удалось сохранить письмо",
+      );
     }
   }
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[1fr_260px]">
-      <Card className="p-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-lg font-semibold text-ink">Письмо к вакансии</h1>
-          <span className="text-xs text-ink-subtle">Версия {letter.version}</span>
+    <div className="editor">
+      <Card className="editor-card">
+        <div className="editor-card__header">
+          <h1 className="editor-card__title">Письмо к вакансии</h1>
+          <span className="editor-card__version">Версия {letter.version}</span>
         </div>
 
-        <div className="mt-4">
-          <p className="mb-2 text-sm text-ink-muted">
-            Жёлтым выделены утверждения, которых нет в портфолио, — проверьте их перед отправкой.
-          </p>
-          <HighlightedContent content={content} fragments={letter.unverified} />
-        </div>
+        <p className="editor-hint">
+          Жёлтым выделены утверждения, которых нет в портфолио, — проверьте их перед отправкой.
+        </p>
+
+        <HighlightedContent content={content} fragments={letter.unverified} />
 
         <Textarea
-          className="mt-4 min-h-[200px]"
+          className="editor-textarea"
           aria-label="Текст письма"
           value={content}
           onChange={(event) => {
@@ -89,42 +77,33 @@ export function LetterEditorPage() {
           }}
         />
 
-        {saveState === "error" && saveError && (
-          <Alert tone="error" className="mt-3">
-            {saveError}
-          </Alert>
-        )}
-        {saveState === "saved" && (
-          <Alert tone="success" className="mt-3">
-            Сохранено
-          </Alert>
-        )}
+        {saveState === "error" && saveError && <Alert tone="error">{saveError}</Alert>}
+        {saveState === "saved" && <Alert tone="success">Сохранено</Alert>}
 
-        <div className="mt-4 flex justify-end">
+        <div className="editor-actions">
           <Button onClick={handleSave} loading={saveState === "saving"}>
             Сохранить
           </Button>
         </div>
       </Card>
 
-      <Card className="h-fit p-4">
-        <h2 className="text-sm font-semibold text-ink">Версии</h2>
-        {versionsQuery.isLoading ? (
-          <div className="mt-2 space-y-2">
-            <Skeleton className="h-14 w-full" />
-            <Skeleton className="h-14 w-full" />
+      <Card className="editor-aside">
+        <h2 className="editor-aside__title">Версии</h2>
+        {versions.loading ? (
+          <div style={{ marginTop: 8 }}>
+            <Skeleton style={{ height: 56, width: "100%" }} />
           </div>
         ) : (
-          <ul className="mt-2 space-y-2">
-            {versionsQuery.data?.items.map((version) => (
-              <li key={version.version} className="rounded-lg border border-edge px-3 py-2">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-medium text-ink">Версия {version.version}</span>
-                  <span className="text-ink-subtle">
+          <ul className="version-list">
+            {versions.data?.items.map((version) => (
+              <li key={version.version} className="version-item">
+                <div className="version-item__row">
+                  <span className="version-item__num">Версия {version.version}</span>
+                  <span className="version-item__author">
                     {version.author === "model" ? "Модель" : "Вы"}
                   </span>
                 </div>
-                <p className="mt-0.5 text-xs text-ink-subtle">{formatDate(version.created_at)}</p>
+                <p className="version-item__date">{formatDate(version.created_at)}</p>
               </li>
             ))}
           </ul>
@@ -139,33 +118,19 @@ export function LetterEditorPage() {
  * сокращён, поэтому позиции могут выходить за его границы — тогда ищем фрагмент
  * по тексту, чтобы подсветка была видна и на заглушке.
  */
-function HighlightedContent({
-  content,
-  fragments,
-}: {
-  content: string;
-  fragments: TextFragment[];
-}) {
+function HighlightedContent({ content, fragments }: { content: string; fragments: TextFragment[] }) {
   const ranges = buildRanges(content, fragments);
   const nodes: ReactNode[] = [];
   let cursor = 0;
 
   for (const range of ranges) {
     if (range.start > cursor) nodes.push(content.slice(cursor, range.start));
-    nodes.push(
-      <mark key={range.start} className="rounded bg-warning-subtle px-0.5 text-warning">
-        {content.slice(range.start, range.end)}
-      </mark>,
-    );
+    nodes.push(<mark key={range.start}>{content.slice(range.start, range.end)}</mark>);
     cursor = range.end;
   }
   if (cursor < content.length) nodes.push(content.slice(cursor));
 
-  return (
-    <p className="whitespace-pre-wrap rounded-lg border border-edge bg-surface-subtle p-3 text-sm leading-relaxed text-ink">
-      {nodes}
-    </p>
-  );
+  return <p className="letter-preview">{nodes}</p>;
 }
 
 function buildRanges(content: string, fragments: TextFragment[]) {
@@ -196,15 +161,15 @@ function buildRanges(content: string, fragments: TextFragment[]) {
 
 function EditorSkeleton() {
   return (
-    <div className="grid gap-4 lg:grid-cols-[1fr_260px]">
-      <Card className="space-y-4 p-6">
-        <Skeleton className="h-6 w-1/3" />
-        <Skeleton className="h-40 w-full" />
-        <Skeleton className="h-10 w-24" />
+    <div className="editor">
+      <Card className="editor-card">
+        <Skeleton style={{ height: 24, width: "40%" }} />
+        <Skeleton style={{ height: 160, width: "100%", marginTop: 16 }} />
+        <Skeleton style={{ height: 40, width: 96, marginTop: 16 }} />
       </Card>
-      <Card className="space-y-2 p-4">
-        <Skeleton className="h-4 w-16" />
-        <Skeleton className="h-14 w-full" />
+      <Card className="editor-aside">
+        <Skeleton style={{ height: 16, width: 64 }} />
+        <Skeleton style={{ height: 56, width: "100%", marginTop: 8 }} />
       </Card>
     </div>
   );

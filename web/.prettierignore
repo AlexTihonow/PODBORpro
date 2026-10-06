@@ -1,7 +1,0 @@
-dist
-node_modules
-src/api/schema.d.ts
-src/api/stubs/manifest.ts
-src/api/stubs/routes.ts
-src/api/stubs/*.json
-pnpm-lock.yaml

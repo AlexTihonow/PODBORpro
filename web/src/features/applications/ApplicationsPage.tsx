@@ -1,5 +1,3 @@
-import { useQuery } from "@tanstack/react-query";
-
 import { listApplications } from "@/api/applications";
 import type { ApplicationStatus } from "@/api/types";
 import { Badge } from "@/components/ui/Badge";
@@ -8,16 +6,14 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { usePreviewState } from "@/hooks/usePreviewState";
+import { useRequest } from "@/hooks/useRequest";
 import { applicationStatusLabel, formatDate } from "@/lib/format";
 
 const COLUMNS: ApplicationStatus[] = ["draft", "sent", "interview", "offer", "rejected"];
 
 export function ApplicationsPage() {
   const preview = usePreviewState();
-  const applicationsQuery = useQuery({
-    queryKey: ["applications"],
-    queryFn: () => listApplications(),
-  });
+  const { data, error, loading, reload } = useRequest(() => listApplications(), "applications");
 
   if (preview === "loading") return <BoardSkeleton />;
 
@@ -35,28 +31,28 @@ export function ApplicationsPage() {
       <ErrorState
         title="Не получилось загрузить отклики"
         message="Проверьте подключение к интернету и попробуйте ещё раз."
-        onRetry={() => applicationsQuery.refetch()}
+        onRetry={reload}
       />
     );
   }
 
-  if (applicationsQuery.isLoading) return <BoardSkeleton />;
+  if (loading) return <BoardSkeleton />;
 
-  if (applicationsQuery.isError) {
+  if (error) {
     return (
       <ErrorState
         title="Не получилось загрузить отклики"
-        message={applicationsQuery.error?.message ?? "Не получилось загрузить отклики"}
-        onRetry={() => applicationsQuery.refetch()}
+        message={error.message}
+        onRetry={reload}
       />
     );
   }
 
-  const applications = applicationsQuery.data?.items ?? [];
+  const applications = data?.items ?? [];
 
   return (
-    <div className="space-y-4">
-      <h1 className="text-xl font-semibold text-ink">Доска откликов</h1>
+    <div className="feed">
+      <h1 className="page-title">Доска откликов</h1>
 
       {applications.length === 0 ? (
         <EmptyState
@@ -64,36 +60,24 @@ export function ApplicationsPage() {
           description="Откройте подходящую вакансию и составьте первое письмо."
         />
       ) : (
-        <div className="grid gap-4 md:grid-cols-5">
+        <div className="board">
           {COLUMNS.map((status) => {
             const items = applications.filter((application) => application.status === status);
             return (
-              <div key={status} className="rounded-xl border border-edge bg-surface p-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-ink">
-                    {applicationStatusLabel(status)}
-                  </span>
+              <div key={status} className="board-column">
+                <div className="board-column__header">
+                  <span className="board-column__title">{applicationStatusLabel(status)}</span>
                   <Badge tone="neutral">{items.length}</Badge>
                 </div>
-                <div className="mt-3 space-y-2">
+                <div className="board-column__body">
                   {items.map((application) => (
-                    <Card key={application.id} className="p-3">
-                      <p className="line-clamp-2 text-sm font-medium text-ink">
-                        {application.vacancy.title}
-                      </p>
-                      <p className="mt-0.5 text-xs text-ink-muted">
-                        {application.vacancy.company}
-                      </p>
-                      <p className="mt-1 text-xs text-ink-subtle">
-                        Обновлено {formatDate(application.updated_at)}
-                      </p>
+                    <Card key={application.id} className="app-card">
+                      <p className="app-card__title line-clamp-2">{application.vacancy.title}</p>
+                      <p className="app-card__company">{application.vacancy.company}</p>
+                      <p className="app-card__date">Обновлено {formatDate(application.updated_at)}</p>
                     </Card>
                   ))}
-                  {items.length === 0 && (
-                    <p className="rounded-lg border border-dashed border-edge px-3 py-4 text-center text-xs text-ink-subtle">
-                      Нет откликов
-                    </p>
-                  )}
+                  {items.length === 0 && <div className="board-empty">Нет откликов</div>}
                 </div>
               </div>
             );
@@ -106,12 +90,12 @@ export function ApplicationsPage() {
 
 function BoardSkeleton() {
   return (
-    <div className="grid gap-4 md:grid-cols-5">
+    <div className="board">
       {COLUMNS.map((status) => (
-        <div key={status} className="space-y-2">
-          <Skeleton className="h-6 w-full" />
-          <Skeleton className="h-24 w-full" />
-          <Skeleton className="h-24 w-full" />
+        <div key={status} className="board-column">
+          <Skeleton style={{ height: 24, width: "100%" }} />
+          <Skeleton style={{ height: 96, width: "100%", marginTop: 12 }} />
+          <Skeleton style={{ height: 96, width: "100%", marginTop: 8 }} />
         </div>
       ))}
     </div>

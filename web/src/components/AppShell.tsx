@@ -1,9 +1,11 @@
 import { useEffect } from "react";
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import type { ReactNode } from "react";
 
-import { useAuthStore } from "@/auth/useAuthStore";
+import { useAuth } from "@/auth/AuthContext";
 import { cn } from "@/lib/cn";
+import { navigate, usePathname } from "@/router";
 
+import { Link } from "./Link";
 import { Logo } from "./Logo";
 import { Button } from "./ui/Button";
 
@@ -13,11 +15,9 @@ const NAV_ITEMS = [
   { to: "/onboarding", label: "Настройка" },
 ];
 
-export function AppShell() {
-  const user = useAuthStore((state) => state.user);
-  const refreshMe = useAuthStore((state) => state.refreshMe);
-  const logout = useAuthStore((state) => state.logout);
-  const navigate = useNavigate();
+export function AppShell({ children }: { children: ReactNode }) {
+  const { user, refreshMe, logout } = useAuth();
+  const pathname = usePathname();
 
   // После перезагрузки токен есть, а данные профиля ещё нет — подтягиваем /me.
   useEffect(() => {
@@ -25,39 +25,31 @@ export function AppShell() {
   }, [user, refreshMe]);
 
   return (
-    <div className="min-h-screen">
-      <header className="sticky top-0 z-10 border-b border-edge bg-surface">
-        <div className="mx-auto flex h-14 max-w-screen items-center justify-between gap-4 px-4">
-          <div className="flex items-center gap-6">
+    <div>
+      <header className="app-header">
+        <div className="container app-header__inner">
+          <div className="app-header__left">
             <Logo />
-            <nav className="flex items-center gap-1">
+            <nav className="app-nav">
               {NAV_ITEMS.map((item) => (
-                <NavLink
+                <Link
                   key={item.to}
                   to={item.to}
-                  className={({ isActive }) =>
-                    cn(
-                      "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-                      isActive
-                        ? "bg-brand-50 text-brand-700"
-                        : "text-ink-muted hover:bg-surface-muted hover:text-ink",
-                    )
-                  }
+                  className={cn("app-nav__link", pathname === item.to && "app-nav__link--active")}
                 >
                   {item.label}
-                </NavLink>
+                </Link>
               ))}
             </nav>
           </div>
-
-          <div className="flex items-center gap-3">
-            {user && <span className="text-sm text-ink-muted">{user.full_name}</span>}
+          <div className="app-header__right">
+            {user && <span className="app-user">{user.full_name}</span>}
             <Button
               variant="ghost"
               size="sm"
               onClick={() => {
                 logout();
-                navigate("/login", { replace: true });
+                navigate("/login");
               }}
             >
               Выйти
@@ -65,10 +57,7 @@ export function AppShell() {
           </div>
         </div>
       </header>
-
-      <main className="mx-auto max-w-screen px-4 py-6">
-        <Outlet />
-      </main>
+      <main className="container app-main">{children}</main>
     </div>
   );
 }

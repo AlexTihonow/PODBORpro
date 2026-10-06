@@ -1,31 +1,25 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import { ApiError } from "@/api/client";
-import { useAuthStore } from "@/auth/useAuthStore";
+import { useAuth } from "@/auth/AuthContext";
+import { Link } from "@/components/Link";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
 import { Input } from "@/components/ui/Input";
+import { getNavState, navigate } from "@/router";
 import { validateEmail, validatePassword } from "@/lib/validation";
 import { TEST_IDS } from "@/testing/testIds";
 
 import { AuthLayout } from "./AuthLayout";
 
-interface LocationState {
-  from?: { pathname?: string };
-  email?: string;
-}
-
 export function LoginPage() {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const state = (location.state ?? {}) as LocationState;
+  const { login } = useAuth();
+  const from = new URLSearchParams(window.location.search).get("from") ?? "";
+  const navState = getNavState() as { email?: string } | null;
 
-  const login = useAuthStore((store) => store.login);
-
-  const [email, setEmail] = useState(state.email ?? "");
+  const [email, setEmail] = useState(navState?.email ?? "");
   const [password, setPassword] = useState("");
   const [touched, setTouched] = useState({ email: false, password: false });
   const [formError, setFormError] = useState<string | null>(null);
@@ -47,10 +41,8 @@ export function LoginPage() {
     setSubmitting(true);
     setFormError(null);
     try {
-      await login(email, password);
-      const resumeStatus = useAuthStore.getState().resumeStatus;
-      const from = state.from?.pathname;
-      navigate(resumeStatus === "none" ? "/onboarding" : from ?? "/feed", { replace: true });
+      const status = await login(email, password);
+      navigate(status === "none" ? "/onboarding" : from || "/feed");
     } catch (error) {
       if (error instanceof ApiError) {
         if (error.status === 401) {
@@ -72,7 +64,7 @@ export function LoginPage() {
 
   return (
     <AuthLayout title="Вход" subtitle="Войдите, чтобы увидеть ленту вакансий">
-      <form onSubmit={handleSubmit} noValidate className="space-y-4">
+      <form className="auth-form" onSubmit={handleSubmit} noValidate>
         {formError && (
           <Alert tone="error" data-testid={TEST_IDS.loginError}>
             {formError}
@@ -109,7 +101,7 @@ export function LoginPage() {
 
         <Button
           type="submit"
-          className="w-full"
+          className="btn--block"
           loading={submitting}
           data-testid={TEST_IDS.loginSubmit}
         >
@@ -117,11 +109,8 @@ export function LoginPage() {
         </Button>
       </form>
 
-      <p className="mt-6 text-center text-sm text-ink-muted">
-        Нет аккаунта?{" "}
-        <Link to="/register" className="font-medium text-brand-600 hover:text-brand-700">
-          Зарегистрироваться
-        </Link>
+      <p className="auth-footer">
+        Нет аккаунта? <Link to="/register">Зарегистрироваться</Link>
       </p>
     </AuthLayout>
   );

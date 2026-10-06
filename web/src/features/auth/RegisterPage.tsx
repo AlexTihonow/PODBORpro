@@ -1,21 +1,21 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
-import { Link, useNavigate } from "react-router-dom";
 
 import { ApiError } from "@/api/client";
-import { useAuthStore } from "@/auth/useAuthStore";
+import { useAuth } from "@/auth/AuthContext";
+import { Link } from "@/components/Link";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Field } from "@/components/ui/Field";
 import { Input } from "@/components/ui/Input";
+import { navigate } from "@/router";
 import { validateEmail, validateName, validatePassword } from "@/lib/validation";
 import { TEST_IDS } from "@/testing/testIds";
 
 import { AuthLayout } from "./AuthLayout";
 
 export function RegisterPage() {
-  const navigate = useNavigate();
-  const register = useAuthStore((store) => store.register);
+  const { register } = useAuth();
 
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
@@ -25,8 +25,7 @@ export function RegisterPage() {
   const [emailServerError, setEmailServerError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const emailError =
-    emailServerError ?? (touched.email ? validateEmail(email) : null);
+  const emailError = emailServerError ?? (touched.email ? validateEmail(email) : null);
   const nameError = touched.name ? validateName(name) : null;
   const passwordError = touched.password ? validatePassword(password) : null;
 
@@ -45,9 +44,8 @@ export function RegisterPage() {
     setFormError(null);
     setEmailServerError(null);
     try {
-      await register({ email: email.trim(), password, full_name: name.trim() });
-      const resumeStatus = useAuthStore.getState().resumeStatus;
-      navigate(resumeStatus === "none" ? "/onboarding" : "/feed", { replace: true });
+      const status = await register({ email: email.trim(), password, full_name: name.trim() });
+      navigate(status === "none" ? "/onboarding" : "/feed");
     } catch (error) {
       if (error instanceof ApiError) {
         if (error.status === 409 && error.code === "email_taken") {
@@ -68,7 +66,7 @@ export function RegisterPage() {
 
   return (
     <AuthLayout title="Регистрация" subtitle="Создайте аккаунт за минуту">
-      <form onSubmit={handleSubmit} noValidate className="space-y-4">
+      <form className="auth-form" onSubmit={handleSubmit} noValidate>
         {formError && (
           <Alert tone="error" data-testid={TEST_IDS.registerError}>
             {formError}
@@ -92,12 +90,8 @@ export function RegisterPage() {
           />
         </Field>
         {emailServerError && (
-          <p className="-mt-2 text-sm">
-            <Link
-              to="/login"
-              state={{ email: email.trim() }}
-              className="font-medium text-brand-600 hover:text-brand-700"
-            >
+          <p className="field__hint">
+            <Link to="/login" state={{ email: email.trim() }}>
               Войти с этой почтой
             </Link>
           </p>
@@ -133,7 +127,7 @@ export function RegisterPage() {
 
         <Button
           type="submit"
-          className="w-full"
+          className="btn--block"
           loading={submitting}
           data-testid={TEST_IDS.registerSubmit}
         >
@@ -141,11 +135,8 @@ export function RegisterPage() {
         </Button>
       </form>
 
-      <p className="mt-6 text-center text-sm text-ink-muted">
-        Уже есть аккаунт?{" "}
-        <Link to="/login" className="font-medium text-brand-600 hover:text-brand-700">
-          Войти
-        </Link>
+      <p className="auth-footer">
+        Уже есть аккаунт? <Link to="/login">Войти</Link>
       </p>
     </AuthLayout>
   );

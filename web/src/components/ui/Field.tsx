@@ -22,22 +22,16 @@ export function Field({
   className,
 }: FieldProps) {
   return (
-    <div className={cn("space-y-1.5", className)}>
-      <label htmlFor={htmlFor} className="block text-sm font-medium text-ink">
+    <div className={cn("field", className)}>
+      <label htmlFor={htmlFor} className="field__label">
         {label}
-        {required && (
-          <span className="ml-0.5 text-danger" aria-hidden="true">
-            *
-          </span>
-        )}
+        {required && <span className="field__required"> *</span>}
       </label>
       {children}
       {error ? (
-        <p role="alert" className="text-sm text-danger">
-          {error}
-        </p>
+        <p className="field__error">{error}</p>
       ) : hint ? (
-        <p className="text-sm text-ink-subtle">{hint}</p>
+        <p className="field__hint">{hint}</p>
       ) : null}
     </div>
   );

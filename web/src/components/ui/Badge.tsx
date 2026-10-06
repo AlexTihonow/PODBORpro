@@ -4,12 +4,12 @@ import { cn } from "@/lib/cn";
 
 export type BadgeTone = "neutral" | "brand" | "success" | "warning" | "danger";
 
-const TONE_CLASSES: Record<BadgeTone, string> = {
-  neutral: "bg-surface-muted text-ink-muted",
-  brand: "bg-brand-50 text-brand-700",
-  success: "bg-success-subtle text-success",
-  warning: "bg-warning-subtle text-warning",
-  danger: "bg-danger-subtle text-danger",
+const TONE_CLASS: Record<BadgeTone, string> = {
+  neutral: "badge--neutral",
+  brand: "badge--brand",
+  success: "badge--success",
+  warning: "badge--warning",
+  danger: "badge--danger",
 };
 
 export interface BadgeProps {
@@ -19,15 +19,5 @@ export interface BadgeProps {
 }
 
 export function Badge({ tone = "neutral", children, className }: BadgeProps) {
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium",
-        TONE_CLASSES[tone],
-        className,
-      )}
-    >
-      {children}
-    </span>
-  );
+  return <span className={cn("badge", TONE_CLASS[tone], className)}>{children}</span>;
 }

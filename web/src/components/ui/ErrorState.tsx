@@ -16,16 +16,11 @@ export function ErrorState({
   className,
 }: ErrorStateProps) {
   return (
-    <div
-      className={cn(
-        "flex flex-col items-center justify-center gap-2 px-4 py-16 text-center",
-        className,
-      )}
-    >
-      <p className="text-base font-semibold text-ink">{title}</p>
-      {message && <p className="max-w-sm text-sm text-ink-muted">{message}</p>}
+    <div className={cn("error-state", className)}>
+      <p className="error-state__title">{title}</p>
+      {message && <p className="error-state__desc">{message}</p>}
       {onRetry && (
-        <Button variant="secondary" size="sm" onClick={onRetry} className="mt-2">
+        <Button variant="secondary" size="sm" onClick={onRetry} className="error-state__retry">
           Попробовать ещё раз
         </Button>
       )}

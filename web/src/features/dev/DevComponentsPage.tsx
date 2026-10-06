@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import { Link } from "react-router-dom";
 
+import { Link } from "@/components/Link";
 import { Alert } from "@/components/ui/Alert";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -28,16 +28,16 @@ const PREVIEW_LINKS = [
 
 export function DevComponentsPage() {
   return (
-    <div className="mx-auto max-w-screen space-y-10 px-4 py-8">
+    <div className="container dev-page">
       <header>
-        <h1 className="text-2xl font-semibold text-ink">Служебная страница компонентов</h1>
-        <p className="mt-1 text-sm text-ink-muted">
+        <h1 className="page-title">Служебная страница компонентов</h1>
+        <p className="field__hint">
           Базовые элементы и состояния экранов. Страницы за логином — сначала войдите.
         </p>
       </header>
 
       <Section title="Кнопки">
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="dev-row">
           <Button>Основная</Button>
           <Button variant="secondary">Вторичная</Button>
           <Button variant="ghost">Призрачная</Button>
@@ -50,7 +50,7 @@ export function DevComponentsPage() {
       </Section>
 
       <Section title="Поля">
-        <div className="grid max-w-xl gap-4">
+        <div className="dev-stack" style={{ maxWidth: 576 }}>
           <Field label="Обычное поле" htmlFor="dev-input">
             <Input id="dev-input" placeholder="Например, почта" />
           </Field>
@@ -71,7 +71,7 @@ export function DevComponentsPage() {
       </Section>
 
       <Section title="Сообщения">
-        <div className="space-y-3">
+        <div className="dev-stack">
           <Alert tone="error">Неверная почта или пароль.</Alert>
           <Alert tone="warning">Подбор упрощён: сервис подбора временно недоступен.</Alert>
           <Alert tone="info">Резюме обрабатывается — обновим ленту автоматически.</Alert>
@@ -80,7 +80,7 @@ export function DevComponentsPage() {
       </Section>
 
       <Section title="Бейджи и чипы">
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="dev-row">
           <Badge tone="neutral">Нейтральный</Badge>
           <Badge tone="brand">83%</Badge>
           <Badge tone="success">Совпало</Badge>
@@ -93,20 +93,20 @@ export function DevComponentsPage() {
       </Section>
 
       <Section title="Загрузка">
-        <div className="flex flex-wrap items-center gap-6">
-          <div className="flex items-center gap-2 text-ink-muted">
+        <div className="dev-row">
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 8, color: "var(--ink-muted)" }}>
             <Spinner /> Загружаем…
-          </div>
-          <div className="w-full max-w-md space-y-2">
-            <Skeleton className="h-5 w-3/4" />
-            <Skeleton className="h-4 w-1/3" />
-            <Skeleton className="h-4 w-full" />
+          </span>
+          <div className="dev-stack" style={{ width: "100%", maxWidth: 448 }}>
+            <Skeleton style={{ height: 20, width: "75%" }} />
+            <Skeleton style={{ height: 16, width: "33%" }} />
+            <Skeleton style={{ height: 16, width: "100%" }} />
           </div>
         </div>
       </Section>
 
       <Section title="Пусто и ошибка">
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="dev-grid">
           <Card>
             <EmptyState
               title="Подходящих вакансий пока нет"
@@ -114,41 +114,33 @@ export function DevComponentsPage() {
             />
           </Card>
           <Card>
-            <ErrorState
-              title="Не получилось загрузить ленту"
-              message="Проверьте подключение к интернету."
-            />
+            <ErrorState title="Не получилось загрузить ленту" message="Проверьте подключение к интернету." />
           </Card>
         </div>
       </Section>
 
       <Section title="Краевые случаи вёрстки">
-        <Card className="max-w-xl space-y-2 p-5">
-          <p className="line-clamp-2 font-semibold text-ink">
+        <Card className="vacancy-card" style={{ maxWidth: 576 }}>
+          <p className="vacancy-card__title line-clamp-2">
             Ведущий инженер-программист по разработке высоконагруженных распределённых систем
             обработки данных на Go с опытом работы в платёжных сервисах
           </p>
-          <p className="text-sm text-ink-muted">
+          <p className="vacancy-card__company">
             {formatSalary({ salary_from: null, salary_to: null, currency: null })}
           </p>
-          <p className="text-sm text-ink-muted">
+          <p className="vacancy-card__company">
             {formatSalary({ salary_from: 120000, salary_to: 180000, currency: "RUB" })}
           </p>
         </Card>
       </Section>
 
       <Section title="Макеты экранов (состояния)">
-        <p className="mb-3 text-sm text-ink-muted">
-          Параметр <code className="rounded bg-surface-muted px-1">?preview=…</code> включает состояние
-          без сервера.
+        <p className="field__hint" style={{ marginBottom: 12 }}>
+          Параметр <code className="dev-code">?preview=…</code> включает состояние без сервера.
         </p>
-        <div className="flex flex-wrap gap-2">
+        <div className="dev-links">
           {PREVIEW_LINKS.map((link) => (
-            <Link
-              key={link.to}
-              to={link.to}
-              className="rounded-lg border border-edge bg-surface px-3 py-1.5 text-sm text-ink-muted hover:bg-surface-subtle hover:text-ink"
-            >
+            <Link key={link.to} to={link.to} className="dev-link">
               {link.label}
             </Link>
           ))}
@@ -161,7 +153,7 @@ export function DevComponentsPage() {
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section>
-      <h2 className="mb-3 text-base font-semibold text-ink">{title}</h2>
+      <h2 className="dev-section__title">{title}</h2>
       {children}
     </section>
   );

@@ -1,8 +1,6 @@
-import { useQuery } from "@tanstack/react-query";
-import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
-
 import type { FeedItem } from "@/api/types";
 import { getVacancy } from "@/api/vacancies";
+import { Link } from "@/components/Link";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -10,6 +8,7 @@ import { Chip } from "@/components/ui/Chip";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { usePreviewState } from "@/hooks/usePreviewState";
+import { useRequest } from "@/hooks/useRequest";
 import {
   formatSalary,
   gradeLabel,
@@ -17,27 +16,19 @@ import {
   sourceLabel,
   workFormatLabel,
 } from "@/lib/format";
+import { getNavState, navigate } from "@/router";
 
 import { ScoreBreakdown } from "./ScoreBreakdown";
 
-export function VacancyPage() {
-  const { id } = useParams();
-  const navigate = useNavigate();
-  const location = useLocation();
+export function VacancyPage({ id }: { id: number }) {
   const preview = usePreviewState();
+  const feedItem = (getNavState() as { feedItem?: FeedItem } | null)?.feedItem;
 
-  const feedItem = (location.state as { feedItem?: FeedItem } | null)?.feedItem;
-  const vacancyId = Number(id);
-
-  const vacancyQuery = useQuery({
-    queryKey: ["vacancy", vacancyId],
-    queryFn: () => getVacancy(vacancyId),
-    enabled: Number.isFinite(vacancyId),
-  });
+  const { data: vacancy, error, loading } = useRequest(() => getVacancy(id), id);
 
   if (preview === "loading") return <VacancySkeleton />;
 
-  if (preview === "error" || vacancyQuery.isError) {
+  if (preview === "error" || error) {
     return (
       <ErrorState
         title="Вакансия не найдена"
@@ -46,71 +37,52 @@ export function VacancyPage() {
     );
   }
 
-  if (vacancyQuery.isLoading || !vacancyQuery.data) return <VacancySkeleton />;
-
-  const vacancy = vacancyQuery.data;
+  if (loading || !vacancy) return <VacancySkeleton />;
 
   return (
-    <div className="space-y-4">
-      <Link to="/feed" className="inline-block text-sm text-ink-muted hover:text-ink">
+    <div className="vacancy">
+      <Link to="/feed" className="vacancy-back">
         ← К ленте
       </Link>
 
-      <Card className="p-6">
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0">
-            <h1 className="text-xl font-semibold text-ink">{vacancy.title}</h1>
-            <p className="mt-1 text-ink-muted">{vacancy.company}</p>
+      <Card className="vacancy-detail">
+        <div className="vacancy-detail__head">
+          <div>
+            <h1 className="vacancy-detail__title">{vacancy.title}</h1>
+            <p className="vacancy-detail__company">{vacancy.company}</p>
           </div>
-          {feedItem && (
-            <Badge tone="brand" className="shrink-0">
-              {scorePercent(feedItem.score)}
-            </Badge>
-          )}
+          {feedItem && <Badge tone="brand">{scorePercent(feedItem.score)}</Badge>}
         </div>
 
-        <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-ink-muted">
-          <span className="font-medium text-ink">{formatSalary(vacancy)}</span>
+        <div className="vacancy-detail__meta">
+          <span className="vacancy-detail__salary">{formatSalary(vacancy)}</span>
           {vacancy.city && <span>{vacancy.city}</span>}
           {vacancy.work_format && <span>{workFormatLabel(vacancy.work_format)}</span>}
           {vacancy.grade && <span>{gradeLabel(vacancy.grade)}</span>}
         </div>
 
-        <div className="mt-4 flex flex-wrap gap-1.5">
+        <div className="vacancy-detail__skills">
           {vacancy.skills.map((skill) => (
             <Chip key={skill.id}>{skill.name}</Chip>
           ))}
         </div>
 
-        <p className="mt-5 whitespace-pre-line text-sm leading-relaxed text-ink-muted">
-          {vacancy.description}
-        </p>
+        <p className="vacancy-detail__desc">{vacancy.description}</p>
 
-        <div className="mt-6 flex flex-wrap items-center gap-3 text-sm">
+        <div className="vacancy-detail__links">
           {vacancy.url && (
-            <a
-              href={vacancy.url}
-              target="_blank"
-              rel="noreferrer"
-              className="font-medium text-brand-600 hover:text-brand-700"
-            >
+            <a href={vacancy.url} target="_blank" rel="noreferrer">
               Открыть на {sourceLabel(vacancy.source)}
             </a>
           )}
           {vacancy.also_on.map((copy) => (
-            <a
-              key={copy.source}
-              href={copy.url}
-              target="_blank"
-              rel="noreferrer"
-              className="text-ink-muted hover:text-ink"
-            >
+            <a key={copy.source} href={copy.url} target="_blank" rel="noreferrer">
               {sourceLabel(copy.source)}
             </a>
           ))}
         </div>
 
-        <div className="mt-6 border-t border-edge pt-5">
+        <div className="vacancy-detail__actions">
           {/* Настоящее составление письма придёт в К-8; пока ведём на макет редактора. */}
           <Button onClick={() => navigate("/letters/15")}>Составить письмо</Button>
         </div>
@@ -123,17 +95,17 @@ export function VacancyPage() {
 
 function VacancySkeleton() {
   return (
-    <div className="space-y-4">
-      <Skeleton className="h-4 w-20" />
-      <Card className="space-y-4 p-6">
-        <Skeleton className="h-6 w-2/3" />
-        <Skeleton className="h-4 w-1/4" />
-        <div className="flex gap-2">
-          <Skeleton className="h-6 w-16" />
-          <Skeleton className="h-6 w-20" />
-          <Skeleton className="h-6 w-24" />
+    <div className="vacancy">
+      <Skeleton style={{ height: 16, width: 80 }} />
+      <Card className="vacancy-detail">
+        <Skeleton style={{ height: 24, width: "60%" }} />
+        <Skeleton style={{ height: 16, width: "25%", marginTop: 8 }} />
+        <div className="vacancy-detail__skills">
+          <Skeleton style={{ height: 24, width: 56 }} />
+          <Skeleton style={{ height: 24, width: 72 }} />
+          <Skeleton style={{ height: 24, width: 96 }} />
         </div>
-        <Skeleton className="h-32 w-full" />
+        <Skeleton style={{ height: 128, width: "100%", marginTop: 20 }} />
       </Card>
     </div>
   );
