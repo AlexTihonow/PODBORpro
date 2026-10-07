@@ -143,8 +143,7 @@
     "actions": ["Откликнуться"]
   },
   "вариант 13": {
-    "url": "https://hh.ru/vacancy/131449947?utm_medium=cpc_hh&utm_source=clickmehhru&utm_campaign=1227031&utm_local_campaign=1717795&utm_content=1275873
-",
+    "url": "https://hh.ru/vacancy/131449947?utm_medium=cpc_hh&utm_source=clickmehhru&utm_campaign=1227031&utm_local_campaign=1717795&utm_content=1275873",
     "title": "Менеджер по продажам",
     "salary": { "amount": { "from": 140000, "to": null }, "currency": "RUB", "period": "за месяц", "note": "на руки" },
     "payments": { "frequency": "два раза в месяц" },
