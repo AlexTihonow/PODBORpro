@@ -1,0 +1,12 @@
+{
+  "id": "12345678",
+  "name": "Senior Go Developer",
+  "description": "<p>Мы ищем опытного разработчика...</p>",
+  "key_skills": [
+    {"name": "Go"},
+    {"name": "PostgreSQL"},
+    {"name": "Docker"}
+  ],
+  "salary": {"from": 250000, "to": 350000, "currency": "RUR", "gross": false},
+  "employer": {"id": "123", "name": "ООО Рога и Копыта"}
+}

@@ -1,0 +1,15 @@
+{
+  "items": [
+    {
+      "id": "12345680",
+      "name": "Junior Python Developer",
+      "area": {"id": "113", "name": "Москва"},
+      "salary": {"from": 80000, "currency": "RUR"},
+      "published_at": "2026-09-25T10:00:00+0300"
+    }
+  ],
+  "found": 1,
+  "pages": 1,
+  "page": 0,
+  "per_page": 100
+}

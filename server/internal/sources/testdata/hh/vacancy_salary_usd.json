@@ -1,0 +1,8 @@
+{
+  "id": "12345681",
+  "name": "Remote Blockchain Developer",
+  "description": "<p>Work from anywhere.</p>",
+  "key_skills": [{"name": "Solidity"}],
+  "salary": {"from": 5000, "to": 8000, "currency": "USD", "gross": true},
+  "employer": {"id": "999", "name": "CryptoCorp"}
+}

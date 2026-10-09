@@ -1,0 +1,8 @@
+{
+  "errors": [
+    {
+      "type": "bad_user_agent",
+      "value": "User-Agent header is required and must be in a specific format."
+    }
+  ]
+}
