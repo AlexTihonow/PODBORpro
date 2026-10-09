@@ -29,3 +29,6 @@ ml/research/download_models.py
 **/test-results/
 **/playwright-report/
 **/allure-results/
+
+# Профиль браузера для сбора с hh.ru (cookies, данные входа)
+**/.hh_browser_profile/
