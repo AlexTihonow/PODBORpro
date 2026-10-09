@@ -18,7 +18,7 @@
 
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/)
 - Node.js 20+ и pnpm (`npm i -g pnpm`)
-- Go 1.22+ — только если запускать сервер без Docker
+- Go 1.26+ — только если запускать сервер без Docker
 
 ## Запуск всей системы
 
