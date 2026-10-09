@@ -23,3 +23,9 @@ web/dist/*
 
 # ML
 ml/research/download_models.py
+
+# QA (Playwright)
+**/node_modules/
+**/test-results/
+**/playwright-report/
+**/allure-results/
