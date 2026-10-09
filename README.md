@@ -17,7 +17,7 @@
 ## Что нужно установить
 
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/)
-- Node.js 20+ и pnpm (`npm i -g pnpm`)
+- Node.js 22.13+ и pnpm (`npm i -g pnpm`)
 - Go 1.26+ — только если запускать сервер без Docker
 
 ## Запуск всей системы
