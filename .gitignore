@@ -2,3 +2,5 @@
 _env
 *.md
 .DS_Store
+web/dist/*
+!web/dist/.gitkeep

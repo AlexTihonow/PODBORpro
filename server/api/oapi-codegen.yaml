@@ -1,0 +1,5 @@
+# Типы Go из openapi.yaml. Запуск: make generate (из папки server).
+package: api
+output: types.gen.go
+generate:
+  models: true
