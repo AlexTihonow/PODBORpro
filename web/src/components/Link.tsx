@@ -1,6 +1,6 @@
 import type { AnchorHTMLAttributes, ReactNode } from "react";
 
-import { navigate } from "@/router";
+import { navigate, withBase } from "@/router";
 
 export interface LinkProps extends AnchorHTMLAttributes<HTMLAnchorElement> {
   to: string;
@@ -12,7 +12,7 @@ export interface LinkProps extends AnchorHTMLAttributes<HTMLAnchorElement> {
 export function Link({ to, state, children, ...props }: LinkProps) {
   return (
     <a
-      href={to}
+      href={withBase(to)}
       {...props}
       onClick={(event) => {
         event.preventDefault();
