@@ -1,0 +1,11 @@
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.stub.stub",
+  "token_type": "Bearer",
+  "expires_at": "2026-10-12T12:00:00Z",
+  "user": {
+    "id": 42,
+    "email": "ivan@mail.ru",
+    "full_name": "Иван Петров",
+    "is_admin": false
+  }
+}

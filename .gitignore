@@ -1,6 +1,22 @@
+# секреты и окружение
 .env
+.env.local
+.env.*.local
 _env
+
+# документация планирования — не коммитим
 *.md
+
+# macOS
 .DS_Store
+
+# зависимости
+node_modules/
+.pnpm-store/
+
+# артефакты сборки
+*.tsbuildinfo
+
+# сборка клиентской части
 web/dist/*
 !web/dist/.gitkeep

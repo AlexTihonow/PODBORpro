@@ -1,0 +1,6 @@
+{
+  "error": {
+    "code": "file_too_large",
+    "message": "Файл больше 10 МБ"
+  }
+}

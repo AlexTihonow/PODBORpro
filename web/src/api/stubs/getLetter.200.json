@@ -1,0 +1,15 @@
+{
+  "id": 15,
+  "application_id": 9,
+  "vacancy_id": 4821,
+  "content": "Здравствуйте! Меня заинтересовала вакансия разработчика на Go. Я работал с Kubernetes...",
+  "version": 1,
+  "unverified": [
+    {
+      "start": 120,
+      "end": 130,
+      "text": "Kubernetes"
+    }
+  ],
+  "updated_at": "2026-10-05T10:00:00Z"
+}

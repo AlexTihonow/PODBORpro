@@ -1,0 +1,6 @@
+{
+  "error": {
+    "code": "application_exists",
+    "message": "Отклик на эту вакансию уже создан"
+  }
+}

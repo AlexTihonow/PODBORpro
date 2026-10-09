@@ -1,0 +1,35 @@
+{
+  "id": 4821,
+  "title": "Разработчик на Go",
+  "company": "Ромашка",
+  "city": "Москва",
+  "grade": "junior",
+  "work_format": "hybrid",
+  "salary_from": 180000,
+  "salary_to": null,
+  "currency": "RUB",
+  "skills": [
+    {
+      "id": 12,
+      "name": "Go"
+    },
+    {
+      "id": 31,
+      "name": "PostgreSQL"
+    },
+    {
+      "id": 40,
+      "name": "Docker"
+    }
+  ],
+  "source": "headhunter",
+  "url": "https://hh.ru/vacancy/4821",
+  "published_at": "2026-10-03T09:15:00Z",
+  "description": "Ищем разработчика в команду платёжного шлюза...",
+  "also_on": [
+    {
+      "source": "superjob",
+      "url": "https://superjob.ru/vakansii/4821.html"
+    }
+  ]
+}
