@@ -31,6 +31,10 @@ jobs:
           go-version-file: server/go.mod
           cache-dependency-path: server/go.sum
 
+      # Типы Go из openapi.yaml в git не хранятся — создаём до vet и тестов.
+      - name: generate types
+        run: make generate
+
       - name: gofmt
         run: test -z "$(gofmt -l .)" || (gofmt -l . && exit 1)
 
@@ -40,12 +44,6 @@ jobs:
       # Изменения схемы на пустой базе — до тестов, пока база действительно пустая.
       - name: migrations on empty database
         run: go run ./cmd/server -migrate-only
-
-      # Типы Go совпадают с описанием: если openapi.yaml поменяли, а make generate забыли — красная проверка.
-      - name: generated types are up to date
-        run: |
-          make generate
-          git diff --exit-code -- api/types.gen.go
 
       - name: go test
         env:

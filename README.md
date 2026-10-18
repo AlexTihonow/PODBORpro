@@ -65,6 +65,7 @@ VITE_USE_STUBS=false pnpm run dev
 ```bash
 docker compose up -d db   # нужна только база
 cd server
+make generate             # типы Go из openapi.yaml (в git не хранятся; make run/test создают их сами)
 make run                  # http://localhost:8080
 make test                 # тесты без базы
 make test-db              # все тесты, с базой

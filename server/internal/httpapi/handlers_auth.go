@@ -13,8 +13,8 @@ import (
 func (a *API) health(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
 	defer cancel()
-	if err := a.db.Ping(ctx); err != nil {
-		a.log.Warn("health: база недоступна", "err", err)
+	if err := a.Store.Ping(ctx); err != nil {
+		a.Log.Warn("health: база недоступна", "err", err)
 		writeJSON(w, http.StatusServiceUnavailable, api.Health{Status: api.HealthStatusUnavailable})
 		return
 	}
@@ -26,7 +26,7 @@ func (a *API) register(w http.ResponseWriter, r *http.Request) {
 	if !readJSON(w, r, &req) {
 		return
 	}
-	s, err := a.auth.Register(r.Context(), req.Email, req.Password, req.FullName)
+	s, err := a.Auth.Register(r.Context(), req.Email, req.Password, req.FullName)
 	var verr *auth.ValidationError
 	switch {
 	case errors.As(err, &verr):
@@ -34,7 +34,7 @@ func (a *API) register(w http.ResponseWriter, r *http.Request) {
 	case errors.Is(err, auth.ErrEmailTaken):
 		writeError(w, http.StatusConflict, "email_taken", "Эта почта уже зарегистрирована")
 	case err != nil:
-		a.log.Error("register", "err", err)
+		a.Log.Error("register", "err", err)
 		writeInternal(w)
 	default:
 		writeJSON(w, http.StatusCreated, tokenResponse(s))
@@ -50,13 +50,13 @@ func (a *API) login(w http.ResponseWriter, r *http.Request) {
 		writeValidation(w, "Укажите почту и пароль")
 		return
 	}
-	s, err := a.auth.Login(r.Context(), req.Email, req.Password)
+	s, err := a.Auth.Login(r.Context(), req.Email, req.Password)
 	switch {
 	case errors.Is(err, auth.ErrInvalidCredentials):
-		// Одно сообщение и для неверной почты, и для неверного пароля.
+
 		writeError(w, http.StatusUnauthorized, "invalid_credentials", "Неверная почта или пароль")
 	case err != nil:
-		a.log.Error("login", "err", err)
+		a.Log.Error("login", "err", err)
 		writeInternal(w)
 	default:
 		writeJSON(w, http.StatusOK, tokenResponse(s))

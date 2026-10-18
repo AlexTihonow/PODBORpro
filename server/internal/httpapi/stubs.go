@@ -4,20 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"slices"
-	"strconv"
 
 	"github.com/getkin/kin-openapi/openapi3"
 
 	"github.com/AlexTihonow/PODBORpro/server/api"
 )
 
-// registerStubs проходит по всем адресам из openapi.yaml и для каждого, у которого
-// ещё нет настоящего обработчика, регистрирует заглушку: она отвечает примером
-// из первого успешного ответа (200, 201, 202 или 204). Проверка входа у заглушки
-// такая же, как будет у настоящего обработчика, — по полю security и x-admin.
-//
-// Так «все адреса отвечают» выполняется само и никогда не расходится с описанием.
 func (a *API) registerStubs() error {
 	doc, err := api.Load()
 	if err != nil {
@@ -39,49 +31,36 @@ func (a *API) registerStubs() error {
 }
 
 func stubHandler(op *openapi3.Operation) (http.Handler, error) {
-	status, resp := firstSuccess(op)
-	if resp == nil {
-		return nil, fmt.Errorf("нет успешного ответа")
-	}
-	if status == http.StatusNoContent {
+	for _, code := range []int{200, 201, 202, 204} {
+		resp := op.Responses.Status(code)
+		if resp == nil {
+			continue
+		}
+		var body []byte
+		if code != http.StatusNoContent {
+			mt := resp.Value.Content.Get("application/json")
+			if mt == nil || mt.Example == nil {
+				return nil, fmt.Errorf("у ответа %d нет примера", code)
+			}
+
+			b, err := json.Marshal(mt.Example)
+			if err != nil {
+				return nil, fmt.Errorf("пример ответа %d: %w", code, err)
+			}
+			body = append(b, '\n')
+		}
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("X-Stub", "true")
-			w.WriteHeader(status)
+			if body != nil {
+				w.Header().Set("Content-Type", "application/json; charset=utf-8")
+			}
+			w.WriteHeader(code)
+			_, _ = w.Write(body)
 		}), nil
 	}
-	mt := resp.Content.Get("application/json")
-	if mt == nil || mt.Example == nil {
-		return nil, fmt.Errorf("у ответа %d нет примера", status)
-	}
-	// Пример кодируем один раз при запуске: ошибка в нём видна сразу, а не на запросе.
-	body, err := json.Marshal(mt.Example)
-	if err != nil {
-		return nil, fmt.Errorf("пример ответа %d: %w", status, err)
-	}
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		w.Header().Set("X-Stub", "true")
-		w.WriteHeader(status)
-		_, _ = w.Write(body)
-		_, _ = w.Write([]byte("\n"))
-	}), nil
+	return nil, fmt.Errorf("нет успешного ответа")
 }
 
-func firstSuccess(op *openapi3.Operation) (int, *openapi3.Response) {
-	codes := []int{}
-	for code := range op.Responses.Map() {
-		if c, err := strconv.Atoi(code); err == nil && c >= 200 && c < 300 {
-			codes = append(codes, c)
-		}
-	}
-	if len(codes) == 0 {
-		return 0, nil
-	}
-	c := slices.Min(codes)
-	return c, op.Responses.Value(strconv.Itoa(c)).Value
-}
-
-// stubAccess: у операции свой security, иначе общий; пустой список — вход не нужен.
 func stubAccess(doc *openapi3.T, op *openapi3.Operation) access {
 	sec := doc.Security
 	if op.Security != nil {

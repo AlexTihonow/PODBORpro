@@ -1,4 +1,3 @@
--- Черновик из документа архитектора (А-4, первая очередь). Владелец — архитектор.
 -- +goose Up
 CREATE EXTENSION IF NOT EXISTS vector;
 
@@ -10,7 +9,6 @@ CREATE TABLE users (
     is_admin      boolean     NOT NULL DEFAULT false,
     created_at    timestamptz NOT NULL DEFAULT now()
 );
--- одна почта — один пользователь, без учёта регистра букв
 CREATE UNIQUE INDEX users_email_idx ON users (lower(email));
 
 CREATE TABLE profiles (

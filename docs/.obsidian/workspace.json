@@ -1,24 +1,20 @@
 {
   "main": {
-    "id": "b00808c1ae19c461",
+    "id": "0730a895e57a010e",
     "type": "split",
     "children": [
       {
-        "id": "7afccd26bcbf622a",
+        "id": "d37460b75f03b82a",
         "type": "tabs",
         "children": [
           {
-            "id": "33cc38d290b985a3",
+            "id": "2608ef236854e9f2",
             "type": "leaf",
             "state": {
-              "type": "markdown",
-              "state": {
-                "file": "HISTORY/Волна 8. CP0 2026-09-05 15-51.md",
-                "mode": "source",
-                "source": false
-              },
+              "type": "empty",
+              "state": {},
               "icon": "lucide-file",
-              "title": "Волна 8. CP0 2026-09-05 15-51"
+              "title": "Новая вкладка"
             }
           }
         ]
@@ -27,15 +23,15 @@
     "direction": "vertical"
   },
   "left": {
-    "id": "2be293ff51d42128",
+    "id": "e617cb3217119f93",
     "type": "split",
     "children": [
       {
-        "id": "41316c292806bf4f",
+        "id": "aa95e188fcde11fc",
         "type": "tabs",
         "children": [
           {
-            "id": "cc18842b46e1b8c6",
+            "id": "0005862dcd92728f",
             "type": "leaf",
             "state": {
               "type": "file-explorer",
@@ -50,7 +46,7 @@
             }
           },
           {
-            "id": "272176ec50455f0e",
+            "id": "6ac430d8ab2744e4",
             "type": "leaf",
             "state": {
               "type": "search",
@@ -67,7 +63,7 @@
             }
           },
           {
-            "id": "126c9f4f11cdb4d0",
+            "id": "6ed00215f8ae303f",
             "type": "leaf",
             "state": {
               "type": "bookmarks",
@@ -86,15 +82,15 @@
     "width": 300
   },
   "right": {
-    "id": "0c7187d98fafb9ad",
+    "id": "51d04a32ae1ebf03",
     "type": "split",
     "children": [
       {
-        "id": "5ab0392e51cd3b58",
+        "id": "979cfd69c9a4ca3d",
         "type": "tabs",
         "children": [
           {
-            "id": "4e9132acb9649f45",
+            "id": "44f53eec5d84641d",
             "type": "leaf",
             "state": {
               "type": "backlink",
@@ -112,7 +108,7 @@
             }
           },
           {
-            "id": "2d501fc967e34c75",
+            "id": "0b117a185b5ac72c",
             "type": "leaf",
             "state": {
               "type": "outgoing-link",
@@ -125,7 +121,7 @@
             }
           },
           {
-            "id": "1b885aba0f6c76e9",
+            "id": "4ba1480a7283d4b4",
             "type": "leaf",
             "state": {
               "type": "tag",
@@ -140,7 +136,7 @@
             }
           },
           {
-            "id": "6e943152707a15b0",
+            "id": "79c92712789a3a28",
             "type": "leaf",
             "state": {
               "type": "all-properties",
@@ -154,7 +150,7 @@
             }
           },
           {
-            "id": "501025b11159fe54",
+            "id": "8212a69f72807fb9",
             "type": "leaf",
             "state": {
               "type": "outline",
@@ -185,34 +181,9 @@
       "bases:Создать новую базу": false
     }
   },
-  "active": "cc18842b46e1b8c6",
+  "active": "2608ef236854e9f2",
   "lastOpenFiles": [
-    "HISTORY/Волна 8. Центры вычислений 2026-09-05 16-17.md",
-    "HISTORY/Волна 8. Тяжёлая работа 2026-09-06 11-07.md",
-    "HISTORY/Волна 8. CP1 тяжёлой работы 2026-09-05 16-40.md",
-    "HISTORY/Волна 8. Разграничение зон 2026-09-05 15-16.md",
-    "HISTORY/Волна 7. Сведение 2026-09-05 13-29.md",
-    "HISTORY/Волна 8. CP0 2026-09-05 15-51.md",
-    "HISTORY/Глава IV. Пять модулей 2026-09-02 19-12.md",
-    "HISTORY/Глава III. Ревизия стека Go и htmx, групповые чаты 2026-08-28 19-55.md",
-    "HISTORY/Глава I. Техническая документация и архитектура 2026-08-28 19-14.md",
-    "HISTORY/Волны 0–5. Сводный отчёт 2026-09-04 12-01.md",
-    "HISTORY/Волна 7. Разграничение зон 2026-09-04 12-30.md",
-    "HISTORY/Волна 7. Глубина индекса 2026-09-04 14-00.md",
-    "HISTORY/Волна 7. Метки 2026-09-04 13-32.md",
-    "HISTORY/Волна 6. Разграничение зон 2026-09-03 08-45.md",
-    "HISTORY/Волна 6. Повестка 2026-09-03 13-33.md",
-    "HISTORY/Волна 6. Сведение 2026-09-03 14-03.md",
-    "HISTORY/Волна 6. Файлы 2026-09-03 14-10.md",
-    "HISTORY/Глава II. Решения по вопросам и принцип Low-UI 2026-08-28 19-38.md",
-    "HISTORY/Оглавление проекта 2026-08-28 20-07.md",
-    "Джун 1.md",
-    "HISTORY/Шрифты скинов 2026-09-01 15-00.md",
-    "HISTORY/Параллельная работа двух агентов 2026-08-23 18-30.md",
-    "HISTORY/Редизайн «Межень» и экран тем 2026-09-01 14-25.md",
-    "HISTORY/Волна 5. Полировка 2026-08-31 18-37.md",
-    "HISTORY/Волна 3. Сведение второй ветки 2026-08-30 14-55.md",
-    "HISTORY/Волна 0. Фундамент реализован 2026-08-29 11-55.md",
-    "vocab"
+    "backend-internals.pdf",
+    "backend-shrink.md"
   ]
 }

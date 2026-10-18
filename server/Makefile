@@ -1,22 +1,21 @@
-.PHONY: generate test test-db vet run lint-spec
+.PHONY: generate test test-db vet run
 
-# Типы Go из api/openapi.yaml. Запускать после каждого изменения описания.
 generate:
 	go generate ./api/...
 
-vet:
+api/types.gen.go: api/openapi.yaml
+	go generate ./api/...
+
+vet: api/types.gen.go
 	go vet ./...
 
-# Тесты без базы: тесты регистрации и входа будут пропущены.
-test:
+test: api/types.gen.go
 	go test ./...
 
-# Все тесты, включая регистрацию и вход. Нужна запущенная база:
-#   docker compose up -d db
-test-db:
+test-db: api/types.gen.go
 	TEST_DATABASE_URL=postgres://podbor:podbor@localhost:5432/podbor?sslmode=disable go test ./...
 
-run:
+run: api/types.gen.go
 	DATABASE_URL=postgres://podbor:podbor@localhost:5432/podbor?sslmode=disable \
 	JWT_SECRET=dev-secret-dev-secret-dev-secret-dev \
 	WEB_DIR=../web/dist \

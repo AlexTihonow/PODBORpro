@@ -40,7 +40,7 @@ func TestTokenRejected(t *testing.T) {
 	foreign, _, _ := other.Issue(Claims{UserID: 1})
 
 	parts := strings.Split(good, ".")
-	tampered := parts[0] + "." + parts[1] + "x." + parts[2] // поменяли содержимое, подпись прежняя
+	tampered := parts[0] + "." + parts[1] + "x." + parts[2]
 
 	none, _ := jwt.NewWithClaims(jwt.SigningMethodNone, jwt.MapClaims{
 		"sub": "1", "exp": time.Now().Add(time.Hour).Unix(),

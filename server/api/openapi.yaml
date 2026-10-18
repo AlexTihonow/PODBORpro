@@ -61,7 +61,6 @@ paths:
               schema: { $ref: "#/components/schemas/Health" }
               example: { status: unavailable }
 
-  # ---------------------------------------------------------------- auth
   /auth/register:
     post:
       tags: [auth]
@@ -130,7 +129,6 @@ paths:
               schema: { $ref: "#/components/schemas/Error" }
               example: { error: { code: invalid_credentials, message: Неверная почта или пароль } }
 
-  # ---------------------------------------------------------------- profile
   /me:
     get:
       tags: [profile]
@@ -209,7 +207,6 @@ paths:
         "400": { $ref: "#/components/responses/ValidationError" }
         "401": { $ref: "#/components/responses/Unauthorized" }
 
-  # ---------------------------------------------------------------- portfolio
   /portfolio/resume:
     post:
       tags: [portfolio]
@@ -364,7 +361,6 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
 
-  # ---------------------------------------------------------------- vacancies
   /vacancies:
     get:
       tags: [vacancies]
@@ -482,7 +478,6 @@ paths:
         "400": { $ref: "#/components/responses/ValidationError" }
         "401": { $ref: "#/components/responses/Unauthorized" }
 
-  # ---------------------------------------------------------------- letters
   /vacancies/{id}/letters:
     parameters:
       - $ref: "#/components/parameters/Id"
@@ -597,7 +592,6 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
 
-  # ---------------------------------------------------------------- applications
   /applications:
     get:
       tags: [applications]
@@ -683,7 +677,6 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
 
-  # ---------------------------------------------------------------- admin
   /admin/collection-runs:
     get:
       tags: [admin]
@@ -799,7 +792,6 @@ components:
           example: { error: { code: service_unavailable, message: "Сервис временно недоступен, попробуйте позже" } }
 
   schemas:
-    # ---------- общие
     Error:
       type: object
       required: [error]
@@ -844,7 +836,6 @@ components:
         id: { type: integer, format: int64 }
         name: { type: string }
 
-    # ---------- вход
     RegisterRequest:
       type: object
       required: [email, password, full_name]
@@ -878,7 +869,6 @@ components:
         expires_at: { type: string, format: date-time }
         user: { $ref: "#/components/schemas/User" }
 
-    # ---------- профиль
     Profile:
       type: object
       required: [target_title, target_grade, cities, work_formats, salary_from, tone, resume_status, skills]
@@ -930,7 +920,6 @@ components:
           description: Полный список навыков профиля (заменяет прежний)
           items: { type: integer, format: int64 }
 
-    # ---------- портфолио
     ResumeUploadResponse:
       type: object
       required: [resume_status]
@@ -986,7 +975,6 @@ components:
           type: array
           items: { type: integer, format: int64 }
 
-    # ---------- вакансии и лента
     Vacancy:
       type: object
       required: [id, title, company, city, grade, work_format, salary_from, salary_to, currency, skills, source, url, published_at]
@@ -1092,7 +1080,6 @@ components:
           type: boolean
           description: "`true` — подбор упрощён (без смысловой близости), клиентская часть показывает пометку"
 
-    # ---------- письма
     TextFragment:
       type: object
       required: [start, end, text]
@@ -1147,7 +1134,6 @@ components:
           type: array
           items: { $ref: "#/components/schemas/LetterVersion" }
 
-    # ---------- отклики
     ApplicationStatus:
       type: string
       enum: [draft, sent, interview, offer, rejected]
@@ -1184,7 +1170,6 @@ components:
       properties:
         status: { $ref: "#/components/schemas/ApplicationStatus" }
 
-    # ---------- администратор
     CollectionRun:
       type: object
       required: [id, source, status, started_at, finished_at, fetched, created, updated, errors, error_message]

@@ -20,21 +20,24 @@ import (
 
 const testSecret = "test-secret-test-secret-test-secret!"
 
-type okDB struct{}
+type fakeStore struct{}
 
-func (okDB) Ping(context.Context) error { return nil }
+func (fakeStore) Ping(context.Context) error { return nil }
+func (fakeStore) GetMe(_ context.Context, id int64) (api.Me, error) {
+	return api.Me{Id: id, Profile: api.Profile{Skills: []api.Skill{}}}, nil
+}
+func (fakeStore) UpdateMe(context.Context, int64, api.PatchMeRequest) error { return nil }
 
-// newTestServer — сервер без базы: годится для всего, кроме регистрации и входа.
 func newTestServer(t *testing.T) (*httptest.Server, *auth.Tokens) {
+	return newTestServerWeb(t, t.TempDir())
+}
+
+func newTestServerWeb(t *testing.T, webDir string) (*httptest.Server, *auth.Tokens) {
 	t.Helper()
 	tokens, err := auth.NewTokens(testSecret)
-	if err != nil {
-		t.Fatal(err)
-	}
-	h, err := New(Config{Tokens: tokens, DB: okDB{}, WebDir: t.TempDir(), Log: discardLog()})
-	if err != nil {
-		t.Fatal(err)
-	}
+	must(t, err)
+	h, err := New(Config{Tokens: tokens, Store: fakeStore{}, WebDir: webDir, Log: discardLog()})
+	must(t, err)
 	srv := httptest.NewServer(h)
 	t.Cleanup(srv.Close)
 	return srv, tokens
@@ -75,7 +78,6 @@ func TestHealth(t *testing.T) {
 	}
 }
 
-// Отсутствующий, просроченный и подделанный токен — всегда 401 в едином виде.
 func TestRequireAuth(t *testing.T) {
 	srv, tokens := newTestServer(t)
 	good, _, _ := tokens.Issue(auth.Claims{UserID: 7})
@@ -102,32 +104,19 @@ func TestRequireAuth(t *testing.T) {
 			if c.want == 401 && errorCode(t, body) != "unauthorized" {
 				t.Fatalf("код ошибки не unauthorized: %s", body)
 			}
+
+			if c.want == 200 && !strings.Contains(string(body), `"id":7`) {
+				t.Fatalf("UserID не дошёл до обработчика: %s", body)
+			}
 		})
 	}
 
-	// Заголовок без «Bearer » — тоже 401.
 	req, _ := http.NewRequest("GET", srv.URL+"/api/v1/me", nil)
 	req.Header.Set("Authorization", good)
 	resp, _ := http.DefaultClient.Do(req)
 	resp.Body.Close()
 	if resp.StatusCode != 401 {
 		t.Fatalf("токен без Bearer: код %d", resp.StatusCode)
-	}
-}
-
-func TestUserIDInHandler(t *testing.T) {
-	tokens, _ := auth.NewTokens(testSecret)
-	a := &API{tokens: tokens}
-	var got int64
-	h := a.requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		got = UserID(r.Context())
-	}))
-	raw, _, _ := tokens.Issue(auth.Claims{UserID: 99})
-	req := httptest.NewRequest("GET", "/", nil)
-	req.Header.Set("Authorization", "Bearer "+raw)
-	h.ServeHTTP(httptest.NewRecorder(), req)
-	if got != 99 {
-		t.Fatalf("UserID = %d, ожидали 99", got)
 	}
 }
 
@@ -146,7 +135,6 @@ func TestAdminOnly(t *testing.T) {
 	}
 }
 
-// Каждый адрес из описания отвечает: настоящим обработчиком или заглушкой из примера.
 func TestEveryOperationResponds(t *testing.T) {
 	srv, tokens := newTestServer(t)
 	adminTok, _, _ := tokens.Issue(auth.Claims{UserID: 1, IsAdmin: true})
@@ -157,10 +145,10 @@ func TestEveryOperationResponds(t *testing.T) {
 	for path, item := range doc.Paths.Map() {
 		for method := range item.Operations() {
 			if method == "POST" && strings.HasPrefix(path, "/auth/") {
-				continue // настоящие обработчики, нужна база — см. auth_db_test.go
+				continue
 			}
 			url := api.BasePath + strings.ReplaceAll(path, "{id}", "1")
-			resp, body := do(t, srv, method, url, adminTok, "")
+			resp, body := do(t, srv, method, url, adminTok, "{}")
 			if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 				t.Errorf("%s %s: код %d: %s", method, path, resp.StatusCode, body)
 				continue
@@ -186,7 +174,7 @@ func TestStubReturnsExample(t *testing.T) {
 	if v.Id != 4821 || v.SalaryFrom == nil || v.SalaryTo != nil || len(v.AlsoOn) == 0 {
 		t.Fatalf("пример собран неверно: %+v", v)
 	}
-	// Пустое значение — null, а не отсутствующее поле.
+
 	if !strings.Contains(string(body), `"salary_to":null`) {
 		t.Fatalf("нет salary_to: null в %s", body)
 	}
@@ -206,11 +194,7 @@ func TestSPAFallback(t *testing.T) {
 	must(t, os.MkdirAll(filepath.Join(dir, "assets"), 0o755))
 	must(t, os.WriteFile(filepath.Join(dir, "assets", "app.js"), []byte("console.log(1)"), 0o644))
 
-	tokens, _ := auth.NewTokens(testSecret)
-	h, err := New(Config{Tokens: tokens, DB: okDB{}, WebDir: dir, Log: discardLog()})
-	must(t, err)
-	srv := httptest.NewServer(h)
-	defer srv.Close()
+	srv, _ := newTestServerWeb(t, dir)
 
 	for path, want := range map[string]string{
 		"/":              "<html>app</html>",

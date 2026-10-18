@@ -32,3 +32,6 @@ ml/research/download_models.py
 
 # Профиль браузера для сбора с hh.ru (cookies, данные входа)
 **/.hh_browser_profile/
+
+# Типы Go из server/api/openapi.yaml: создаются make generate (и при сборке образа)
+server/api/types.gen.go
