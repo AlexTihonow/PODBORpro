@@ -1,0 +1,37 @@
+name: scrape-access-check
+
+# Шаг 2 плана (docs/scraper-go.md, п. 11): отдают ли сайты страницы раннеру Actions.
+# Ручной запуск: находит ссылки и скачивает до 20 страниц. В лог — только числа и коды ответов,
+# без адресов: логи публичного репозитория видны всем.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: scraper
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: { go-version-file: scraper/go.mod, cache-dependency-path: scraper/go.sum }
+
+      - name: Ссылки
+        run: go run ./cmd/scraper links -data check-data || true
+
+      - name: 20 страниц
+        run: go run ./cmd/scraper fetch -limit 20 -data check-data || true
+
+      - name: Итог по ошибкам (без адресов)
+        run: |
+          if [ -f check-data/errors.json ]; then
+            jq -r '.errors[] | "\(.stage) \(.source): \(.error)"' check-data/errors.json | sort | uniq -c
+          else
+            echo "ошибок нет"
+          fi
+          jq -r '.vacancies | group_by(.source)[] | "\(.[0].source): разобрано \(length)"' check-data/vacancies.json 2>/dev/null || true

@@ -1,0 +1,40 @@
+# Какие сайты и какие поисковые запросы обходит сборщик (см. docs/scraper-go.md, п. 2).
+
+user_agent: "PODBORpro-bot/1.0 (+https://github.com/AlexTihonow/PODBORpro)"
+pause: 3s-6s                    # случайная пауза между запросами к одному сайту
+max_pages_per_query: 20         # сколько страниц выдачи листать на один запрос
+
+sources:
+  # hh.ru: robots.txt запрещает ботам любые адреса с параметрами (Disallow: *?*), поэтому
+  # обычная выдача /search/vacancy?text=... и листание ?page=1 недоступны — сборщик туда не ходит.
+  # Остаются тематические страницы без параметров: по 50 свежих вакансий на каждой.
+  - code: headhunter
+    render: http                # http — обычный запрос; browser — Chrome без окна (для сайтов на JavaScript)
+    queries:
+      - url: "https://hh.ru/vacancies/go-razrabotchik"
+      - url: "https://hh.ru/vacancies/starshij-razrabotchik-python"
+      - url: "https://hh.ru/vacancies/full-stack-js-developer"
+      - url: "https://hh.ru/vacancies/quality-assurance-engineer"
+      - url: "https://hh.ru/vacancies/junior-devops-engineer"
+      - url: "https://hh.ru/vacancies/veduschij-backend-razrabotchik"
+      - url: "https://hh.ru/vacancies/razrabotchik"
+
+  - code: habr
+    queries:
+      - url: "https://career.habr.com/vacancies?type=all&sort=date&q=backend"
+      - url: "https://career.habr.com/vacancies?type=all&sort=date&q=frontend"
+      - url: "https://career.habr.com/vacancies?type=all&sort=date&q=qa"
+      - url: "https://career.habr.com/vacancies?type=all&sort=date&q=devops"
+
+# Первый сбор (-profile bootstrap): вся выдача до конца и эти запросы в придачу.
+# split_by размножает каждый запрос источника на все сочетания значений: параметр X берётся из списка Xs.
+bootstrap_queries:
+  headhunter:
+    # Вместо дробления выдачи по area × professional_role (адреса с «?» robots.txt запрещает)
+    # берём из карт сайта все тематические страницы, в адресе которых есть одно из слов match.
+    queries:
+      - url: "https://hh.ru/sitemap/main.xml"
+        match: [razrabotchik, programmist, developer, engineer, testirov, devops, analitik, qa-, data]
+  habr:
+    split_by: [qid]             # уровень: стажёр, младший, средний, старший, ведущий...
+    qids: [1, 2, 3, 4, 5, 6]

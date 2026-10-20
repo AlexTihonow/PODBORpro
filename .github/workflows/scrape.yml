@@ -1,0 +1,70 @@
+name: scrape-vacancies
+
+# Сбор вакансий раз в 6 часов: links → fetch → tag → push (docs/scraper-go.md, п. 10).
+# Сборщик и Laya работают на раннере: на хостинге с 1 ГБ памяти не помещается ни то ни другое.
+on:
+  schedule:
+    - cron: "23 */6 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: scrape-vacancies
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  scrape:
+    # Расписание включается переменной репозитория SCRAPE_ENABLED=true (Settings → Variables),
+    # когда на сервере есть адрес импорта и заданы секреты. Ручной запуск работает всегда.
+    if: github.event_name == 'workflow_dispatch' || vars.SCRAPE_ENABLED == 'true'
+    runs-on: ubuntu-latest   # если сайты блокируют облако — self-hosted (п. 8); не для публичного репозитория
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      # Файлы этапов между запусками: какие ссылки уже известны и что уже отправлено
+      - name: Состояние прошлого запуска
+        uses: actions/cache@v4
+        with:
+          path: scraper/data
+          key: scraper-data-${{ github.run_id }}
+          restore-keys: scraper-data-
+
+      - name: Веса Laya
+        if: hashFiles('ml/package.json') != ''
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/receptron-laya
+          key: laya-multilingual-${{ hashFiles('ml/laya.revision') }}
+
+      - uses: actions/setup-node@v4
+        if: hashFiles('ml/package.json') != ''
+        with: { node-version: 22, cache: npm, cache-dependency-path: ml/package-lock.json }
+
+      - uses: actions/setup-go@v5
+        with: { go-version-file: scraper/go.mod, cache-dependency-path: scraper/go.sum }
+
+      # Пока сервис ml не переписан на Node (ml-laya-refactoring.md, п. 4.1), шаг пропускается,
+      # этап tag завершается с предупреждением, и вакансии уходят на сервер без тегов.
+      - name: Запустить Laya в фоне
+        if: hashFiles('ml/package.json') != ''
+        working-directory: ml
+        run: |
+          npm ci
+          nohup npm start > ../laya.log 2>&1 &
+          # ждём, пока модель загрузится (до 5 минут)
+          for i in $(seq 1 60); do curl -sf localhost:8000/health && break; sleep 5; done
+
+      # В лог идут только числа. Код выхода красный, только если не собрался ни один сайт
+      # или упала отправка на сервер; один заблокированный сайт — запуск зелёный.
+      # -limit 500: при паузах 3–6 с это ~40 минут, запуск укладывается в timeout и кэш состояния
+      # сохраняется. Остальное скачается в следующий запуск.
+      - name: Сбор
+        working-directory: scraper
+        run: go run ./cmd/scraper all -limit 500
+        env:
+          LAYA_URL: http://localhost:8000
+          PODBOR_URL: ${{ secrets.PODBOR_URL }}
+          IMPORT_TOKEN: ${{ secrets.IMPORT_TOKEN }}

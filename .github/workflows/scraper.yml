@@ -1,0 +1,34 @@
+name: scraper
+
+on:
+  push:
+    branches: [main]
+    paths: ["scraper/**", ".github/workflows/scraper.yml"]
+  pull_request:
+    paths: ["scraper/**", ".github/workflows/scraper.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  go:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: scraper
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: scraper/go.mod
+          cache-dependency-path: scraper/go.sum
+
+      - name: gofmt
+        run: test -z "$(gofmt -l .)" || (gofmt -l . && exit 1)
+
+      - name: go vet
+        run: go vet ./...
+
+      # Тесты разбора — на сохранённых страницах в internal/sources/<код>/testdata, без сети.
+      - name: go test
+        run: go test -race ./...

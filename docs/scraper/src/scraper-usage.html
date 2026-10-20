@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Сборщик вакансий: как пользоваться</title>
+<link rel="stylesheet" href="../../plan/src/style.css">
+<style>
+@page { size: A4; margin: 16mm 15mm; }
+html, body { background: #fff; }
+body { padding: 0; font-size: 12.5px; line-height: 1.5; }
+h1 { font-size: 26px; margin: 4px 0 6px; }
+.lead { font-size: 14px; color: var(--muted); margin: 0 0 18px; max-width: 160mm; }
+h2 { font-size: 16px; margin: 22px 0 8px; padding-top: 8px; border-top: 1.5px solid var(--ink); break-after: avoid; }
+h2 .n { font-family: var(--mono); color: var(--muted); font-weight: 500; margin-right: 6px; }
+h3 { font-size: 13px; margin: 14px 0 4px; break-after: avoid; }
+p { margin: 4px 0 8px; }
+ul, ol { margin: 4px 0 8px; padding-left: 20px; }
+li { margin-bottom: 2px; }
+ol { break-inside: avoid; }
+code { font-family: var(--mono); font-size: 11.5px; background: var(--band); padding: 0 3px; border-radius: 2px; }
+pre { font-family: var(--mono); font-size: 11px; background: var(--paper); border: 1px solid var(--line);
+      border-left: 3px solid var(--back); padding: 8px 10px; margin: 6px 0 10px; white-space: pre-wrap; break-inside: avoid; }
+pre code { background: none; padding: 0; }
+table { border-collapse: collapse; width: 100%; font-size: 11.5px; margin: 6px 0 10px; break-inside: avoid; }
+th { text-align: left; font-weight: 600; border-bottom: 1.5px solid var(--ink); padding: 4px 8px 4px 0; }
+td { padding: 4px 8px 4px 0; vertical-align: top; border-bottom: 1px solid var(--line); }
+td:first-child { white-space: nowrap; }
+.stages { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 8px 0 12px; }
+.st { border: 1.5px solid var(--ink); padding: 8px 10px; background: var(--paper); }
+.st b { font-family: var(--mono); display: block; font-size: 13px; }
+.st span { font-size: 11px; color: var(--muted); display: block; margin-top: 2px; }
+.st .out { font-family: var(--mono); font-size: 10.5px; color: var(--ink); margin-top: 6px; }
+.warn { border-left: 3px solid var(--crit); background: #fbeee9; padding: 8px 10px; margin: 8px 0 12px; break-inside: avoid; }
+.tip { border-left: 3px solid var(--arch); background: #edf1f7; padding: 8px 10px; margin: 8px 0 12px; break-inside: avoid; }
+.page-break { break-before: page; }
+</style>
+</head>
+<body>
+
+<div class="kicker">PODBORpro · scraper/ · октябрь 2026</div>
+<h1>Сборщик вакансий: как пользоваться</h1>
+<p class="lead">Отдельная программа на Go: находит вакансии на hh.ru и Хабр Карьере, разбирает страницы,
+размечает их сервисом ml (Laya) и отправляет на сервер. Устройство и решения — в <code>docs/scraper-go.md</code>.</p>
+
+<h2><span class="n">01</span>Четыре этапа</h2>
+<p>Каждый этап читает файл предыдущего и пишет свой, поэтому любой этап можно запустить отдельно
+или перезапустить после ошибки.</p>
+<div class="stages">
+  <div class="st"><b>links</b><span>Обходит выдачу и собирает только ссылки на вакансии</span><div class="out">data/links.json</div></div>
+  <div class="st"><b>fetch</b><span>Скачивает и разбирает страницы; HTML удаляется сразу после разбора</span><div class="out">data/vacancies.json</div></div>
+  <div class="st"><b>tag</b><span>Теги, грейд, формат работы от Laya, пакеты по 32</span><div class="out">data/vacancies.json</div></div>
+  <div class="st"><b>push</b><span>Отправляет на сервер только новые и изменённые, пакеты по 100</span><div class="out">сервер на хостинге</div></div>
+</div>
+
+<h2><span class="n">02</span>Что нужно</h2>
+<ul>
+  <li><b>Go 1.26</b> — версия из <code>scraper/go.mod</code>. Зависимости скачаются сами при первом запуске.</li>
+  <li><b>Chrome</b> — только для флага <code>-browser</code> или источников с <code>render: browser</code>.</li>
+  <li><b>Сервис ml</b> с адресом <code>POST /classify</code> — для этапа <code>tag</code>. Без него вакансии уходят без тегов.</li>
+  <li><b>Адрес импорта на сервере</b> и токен — для этапа <code>push</code>.</li>
+</ul>
+
+<h2><span class="n">03</span>Первый запуск</h2>
+<p>Все команды — из папки <code>scraper/</code>. Для проверки достаточно найти ссылки и скачать несколько страниц:</p>
+<pre><code>cd scraper
+go run ./cmd/scraper links               # найти ссылки
+go run ./cmd/scraper fetch -limit 20     # скачать и разобрать 20 страниц</code></pre>
+<p>Результат — в <code>data/vacancies.json</code>. В терминал выводятся только числа: найдено, скачано, ошибок.
+Подробности ошибок — в <code>data/errors.json</code>.</p>
+
+<h3>Все этапы подряд</h3>
+<pre><code>export LAYA_URL=http://localhost:8000          # сервис ml
+export PODBOR_URL=https://podbor.example.com    # сервер
+export IMPORT_TOKEN=...                         # токен адреса импорта
+go run ./cmd/scraper all</code></pre>
+
+<h2><span class="n">04</span>Команды и флаги</h2>
+<table>
+  <tr><th>Команда</th><th>Что делает</th></tr>
+  <tr><td><code>links</code></td><td>Этап 1. Дописывает новые ссылки в <code>links.json</code>, старые не трогает. Ссылки старше 30 дней, которые так и не скачали, удаляет.</td></tr>
+  <tr><td><code>fetch</code></td><td>Этап 2. Скачивает страницы ссылок без <code>fetched_at</code> и разбирает их.</td></tr>
+  <tr><td><code>tag</code></td><td>Этап 3. Размечает вакансии без тегов или изменившиеся после разметки.</td></tr>
+  <tr><td><code>push</code></td><td>Этап 4. Отправляет на сервер новые и изменённые вакансии.</td></tr>
+  <tr><td><code>all</code></td><td>Все четыре этапа подряд.</td></tr>
+</table>
+<table>
+  <tr><th>Флаг</th><th>Для чего</th></tr>
+  <tr><td><code>-limit 200</code></td><td>Не больше 200 скачанных страниц за запуск, общий счётчик на все сайты.</td></tr>
+  <tr><td><code>-retry-failed</code></td><td>Заново разобрать страницы из <code>data/html/failed/</code> — после исправления селекторов.</td></tr>
+  <tr><td><code>-refetch -since 7d</code></td><td>Скачать заново вакансии, скачанные за последние 7 дней (подходит и <code>36h</code>).</td></tr>
+  <tr><td><code>-profile bootstrap</code></td><td>Первый сбор: вся выдача, дополнительные запросы, сайты параллельно (раздел 07).</td></tr>
+  <tr><td><code>-browser</code></td><td>Открывать страницы в Chrome с окном; на проверке «не робот» ждать, пока вы её пройдёте.</td></tr>
+  <tr><td><code>-config</code>, <code>-data</code></td><td>Другой файл настроек (по умолчанию <code>sources.yaml</code>) и другая папка результатов (<code>data</code>).</td></tr>
+</table>
+
+<h2><span class="n">05</span>Настройки: sources.yaml</h2>
+<pre><code>user_agent: "PODBORpro-bot/1.0 (+https://github.com/AlexTihonow/PODBORpro)"
+pause: 3s-6s                 # случайная пауза между запросами к одному сайту
+max_pages_per_query: 20      # сколько страниц выдачи листать на запрос
+
+sources:
+  - code: headhunter
+    render: http             # http или browser (Chrome без окна)
+    queries:
+      - url: "https://hh.ru/vacancies/go-razrabotchik"
+  - code: habr
+    enabled: true            # false — источник отключён
+    queries:
+      - url: "https://career.habr.com/vacancies?type=all&amp;sort=date&amp;q=backend"</code></pre>
+
+<div class="warn"><b>hh.ru: только адреса без «?».</b> robots.txt hh.ru запрещает ботам любые адреса с параметрами
+(<code>Disallow: *?*</code>). Обычная выдача <code>/search/vacancy?text=...</code> и листание <code>?page=1</code>
+недоступны, сборщик туда не ходит и пишет в <code>errors.json</code> «адрес запрещён в robots.txt».
+Для hh.ru указывайте тематические страницы вида <code>https://hh.ru/vacancies/&lt;тема&gt;</code> — на каждой
+50 свежих вакансий. Список тем — в картах сайта <code>https://hh.ru/sitemap/vacancies0.xml</code> … <code>vacancies14.xml</code>.</div>
+
+<p>Запросы к другим сайтам — ссылки на выдачу, отсортированную по дате: когда страница выдачи целиком
+из уже известных ссылок, обход останавливается.</p>
+
+<h3>Переменные окружения</h3>
+<table>
+  <tr><th>Переменная</th><th>Для чего</th></tr>
+  <tr><td><code>LAYA_URL</code></td><td>Адрес сервиса ml, по умолчанию <code>http://localhost:8000</code> (этап <code>tag</code>).</td></tr>
+  <tr><td><code>PODBOR_URL</code></td><td>Адрес сервера (этап <code>push</code>).</td></tr>
+  <tr><td><code>IMPORT_TOKEN</code></td><td>Токен адреса <code>POST /api/v1/internal/vacancies/import</code>.</td></tr>
+</table>
+
+<h2><span class="n">06</span>Папка data/</h2>
+<p>Всё состояние сборщика. В git не хранится (<code>scraper/data/</code> в <code>.gitignore</code>).</p>
+<table>
+  <tr><th>Файл</th><th>Что в нём</th></tr>
+  <tr><td><code>links.json</code></td><td>Ссылки: источник, номер, адрес, когда найдена, когда скачана (<code>fetched_at</code>).</td></tr>
+  <tr><td><code>vacancies.json</code></td><td>Разобранные вакансии; теги Laya; отметки о разметке (<code>tagged_with</code>) и отправке (<code>pushed_hash</code>).</td></tr>
+  <tr><td><code>errors.json</code></td><td>Последние 2000 ошибок: этап, источник, адрес, причина.</td></tr>
+  <tr><td><code>sites.json</code></td><td>Счётчик блокировок по сайтам и до какого времени сайт пропускается.</td></tr>
+  <tr><td><code>html/</code></td><td>Скачанные, но ещё не разобранные страницы. Обычно пусто.</td></tr>
+  <tr><td><code>html/failed/</code></td><td>Страницы, которые не разобрались: по ним видно, что поменялось в вёрстке. Живут 7 дней.</td></tr>
+  <tr><td><code>browser_profile/</code></td><td>Профиль Chrome для <code>-browser</code>: cookies после пройденной проверки.</td></tr>
+</table>
+<div class="tip"><b>Можно прерывать.</b> <code>Ctrl+C</code>, закрытый ноутбук или упавшая программа — не проблема:
+каждое изменение сразу записывается на диск. Повторный запуск той же командой продолжит с места остановки
+и не скачает уже скачанное.</div>
+
+<h2><span class="n">07</span>Первый сбор на своей машине</h2>
+<p>Основную массу вакансий собираем один раз на своём компьютере: это ночь работы, а у Actions лимит времени.
+С домашнего адреса сайты реже показывают проверку «не робот», а если покажут — вы рядом.</p>
+<pre><code>docker compose --profile ml up -d ml     # сервис ml (когда появится /classify)
+cd scraper
+export LAYA_URL=http://localhost:8000
+export PODBOR_URL=https://podbor.example.com
+export IMPORT_TOKEN=...
+go run ./cmd/scraper all -profile bootstrap -browser</code></pre>
+<table>
+  <tr><th>Настройка</th><th>Обычный запуск</th><th>-profile bootstrap</th></tr>
+  <tr><td>Глубина выдачи</td><td>до <code>max_pages_per_query</code>, стоп на известных ссылках</td><td>вся выдача до конца</td></tr>
+  <tr><td>Запросы</td><td><code>queries</code></td><td><code>queries</code> + <code>bootstrap_queries</code></td></tr>
+  <tr><td>Сайты</td><td>по очереди</td><td>параллельно, по одному потоку на сайт</td></tr>
+  <tr><td>Проверка «не робот»</td><td>сбор сайта останавливается</td><td>с <code>-browser</code> — ждём, пока вы пройдёте её и нажмёте Enter</td></tr>
+  <tr><td>Отправка</td><td>в конце</td><td>каждые 500 вакансий</td></tr>
+</table>
+<p><code>bootstrap_queries</code> для hh.ru берут из карты сайта все тематические страницы, в адресе которых есть
+слово из <code>match</code> (razrabotchik, developer, testirov...). Для Хабра запросы дробятся по уровню: <code>split_by: [qid]</code>.</p>
+<p><b>Скорость:</b> 700–1000 страниц в час на сайт; 10 000 вакансий с одного сайта — около ночи. Паузы не сокращаем.</p>
+
+<h2><span class="n">08</span>GitHub Actions</h2>
+<table>
+  <tr><th>Файл</th><th>Когда</th><th>Что делает</th></tr>
+  <tr><td><code>scraper.yml</code></td><td>push и PR в <code>scraper/</code></td><td>gofmt, go vet, тесты. Сети не нужно.</td></tr>
+  <tr><td><code>scrape-access-check.yml</code></td><td>вручную</td><td>Ссылки + 20 страниц; в лог — только числа и ошибки. Отвечает, пускает ли сайт раннер.</td></tr>
+  <tr><td><code>scrape.yml</code></td><td>раз в 6 часов и вручную</td><td><code>all -limit 500</code>; состояние <code>data/</code> хранится в кэше Actions.</td></tr>
+</table>
+<h3>Как включить сбор по расписанию</h3>
+<ol>
+  <li>Запустить вручную <b>scrape-access-check</b> (Actions → Run workflow) и убедиться, что страницы скачиваются без блокировок.</li>
+  <li>Добавить секреты <code>PODBOR_URL</code> и <code>IMPORT_TOKEN</code> (Settings → Secrets and variables → Actions).</li>
+  <li>Добавить переменную репозитория <code>SCRAPE_ENABLED=true</code>. Без неё расписание не срабатывает, ручной запуск работает всегда.</li>
+</ol>
+<p>Запуск красный, только если не собрался ни один сайт или упала отправка. Один заблокированный сайт —
+запуск зелёный, сайт помечается <code>partial</code> или <code>failed</code> в итоге сбора.</p>
+
+<h2><span class="n">09</span>Если что-то пошло не так</h2>
+<table>
+  <tr><th>Что видно</th><th>Что это значит и что делать</th></tr>
+  <tr><td>«сбор сайта остановлен» reason=blocked</td><td>403 или проверка «не робот». Остальные сайты продолжают. Подождать; на своей машине — запустить с <code>-browser</code>. После 3 блокировок подряд сайт пропускается сутки.</td></tr>
+  <tr><td>reason=rate_limited</td><td>Сайт ответил 429/503. Сборщик подождал <code>Retry-After</code> (или 10 минут) и остановил сайт. Следующий запуск продолжит.</td></tr>
+  <tr><td>«адрес запрещён в robots.txt»</td><td>Запрос из <code>sources.yaml</code> нарушает правила сайта. Заменить на разрешённый адрес (для hh.ru — без «?»).</td></tr>
+  <tr><td>растёт <code>failed</code>, файлы в <code>html/failed/</code></td><td>Сайт поменял вёрстку. Открыть страницу из <code>failed/</code>, поправить разбор в <code>internal/sources/&lt;код&gt;/</code>, затем <code>fetch -retry-failed</code>.</td></tr>
+  <tr><td>«разметка не удалась, вакансии уйдут без тегов»</td><td>Сервис ml недоступен. Вакансии отправлены без тегов; теги появятся при следующем запуске.</td></tr>
+  <tr><td>«не заданы PODBOR_URL и IMPORT_TOKEN»</td><td>Задать переменные окружения или секреты Actions.</td></tr>
+  <tr><td>«не собрался ни один сайт», код выхода 1</td><td>Все сайты заблокированы или пропущены. Посмотреть <code>data/sites.json</code> и <code>data/errors.json</code>.</td></tr>
+</table>
+
+<h2><span class="n">10</span>Как добавить сайт</h2>
+<ol>
+  <li>Прочитать пользовательское соглашение и <code>robots.txt</code> сайта.</li>
+  <li>Написать <code>internal/sources/&lt;код&gt;/&lt;код&gt;.go</code> с методами <code>Code</code>, <code>ListLinks</code>, <code>Parse</code>, <code>IsGone</code>.
+      Брать данные по устойчивым атрибутам (<code>data-qa</code>, встроенный JSON страницы), а не по CSS-классам.</li>
+  <li>Сохранить пару настоящих страниц в <code>testdata/</code> (<code>gzip -9</code>) и написать тест с эталоном: <code>go test ./... -update</code> создаст JSON, проверьте его глазами.</li>
+  <li>Добавить строку в <code>registry</code> в <code>cmd/scraper/main.go</code>, источник в <code>sources.yaml</code> и строку в таблицу <code>sources</code> миграцией.</li>
+</ol>
+
+<h2><span class="n">11</span>Правила вежливости</h2>
+<ul>
+  <li>Не больше одного запроса одновременно на сайт, пауза 3–6 секунд.</li>
+  <li><code>robots.txt</code> читается при старте; запрещённые адреса не запрашиваются. Если robots.txt не отвечает (5xx) — к сайту не ходим.</li>
+  <li>Свой User-Agent с адресом проекта, без маскировки под браузер.</li>
+  <li>Проверку «не робот» сборщик не обходит: в Actions сбор сайта останавливается, на своей машине её проходит человек.</li>
+  <li>В логах Actions — только числа: логи публичного репозитория видны всем.</li>
+</ul>
+
+</body>
+</html>

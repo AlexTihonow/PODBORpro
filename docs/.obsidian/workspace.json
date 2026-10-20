@@ -183,7 +183,20 @@
   },
   "active": "2608ef236854e9f2",
   "lastOpenFiles": [
-    "backend-internals.pdf",
+    "scraper-todo.md",
+    "scraper/src/render.sh",
+    "scraper-usage.pdf",
+    "scraper/src/scraper-usage.html",
+    "scraper/src",
+    "scraper",
+    "plan/План завершения ПодборПро.zip",
+    "plan/03-stages.pdf",
+    "plan/src/03-stages.html",
+    "plan/02-architecture.pdf",
+    "plan/src/02-architecture.html",
+    "plan-completion.md",
+    "scraper-go.md",
+    "ml-laya-refactoring.md",
     "backend-shrink.md"
   ]
 }

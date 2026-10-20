@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Этапы до защиты</title>
+<link rel="stylesheet" href="style.css">
+<style>
+@page { size: 1440px 1300px; margin: 0; }
+.page { width: 1352px; }
+h2 { font-size: 15px; margin: 0 0 10px; }
+.chain { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 8px; }
+.c { font-size: 12px; padding: 6px 9px; background: var(--paper); border: 1.5px solid; white-space: nowrap; }
+.c b { font-family: var(--mono); font-weight: 600; margin-right: 4px; }
+.c.done { border-color: var(--ok); background: #e7f0eb; }
+.c.part { border-color: var(--part); background: #f6ecd8; }
+.c.todo { border-color: var(--crit); }
+.c.ms { background: var(--ink); color: #fff; border-color: var(--ink); font-family: var(--mono); }
+.c.ms.red { background: var(--crit); border-color: var(--crit); }
+.to { color: var(--muted); font-size: 14px; }
+.cols { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-top: 22px; }
+.stage { border: 1.5px solid var(--ink); background: var(--paper); display: flex; flex-direction: column; }
+.stage.now { border-width: 2.5px; border-color: var(--crit); }
+.sh { padding: 12px 14px; border-bottom: 1.5px solid var(--ink); }
+.now .sh { border-bottom-color: var(--crit); }
+.sh .k { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+.sh .n { font-size: 16px; font-weight: 700; margin: 3px 0 2px; }
+.sh .g { font-size: 12px; color: var(--muted); line-height: 1.4; }
+.roles { padding: 6px 14px 4px; flex: 1; }
+.role { padding: 7px 0; border-bottom: 1px solid var(--line); font-size: 12px; line-height: 1.45; }
+.role:last-child { border-bottom: 0; }
+.role .rn { font-family: var(--mono); font-size: 10.5px; font-weight: 600; display: block; margin-bottom: 1px; }
+.role .crit { color: var(--crit); font-weight: 600; }
+.chk { background: var(--ink); color: #fff; padding: 10px 14px; font-size: 12px; line-height: 1.45; }
+.chk .k { font-family: var(--mono); font-size: 10.5px; color: #cfcac0; display: block; margin-bottom: 3px; }
+.now .chk { background: var(--crit); }
+.r-arch { color: var(--arch); } .r-back { color: var(--back); } .r-front { color: var(--front); } .r-ml { color: var(--ml); } .r-qa { color: var(--qa); } .r-jr { color: var(--jr); } .r-all { color: var(--ink); }
+.lower { display: grid; grid-template-columns: 1fr 1fr 1.25fr; gap: 16px; margin-top: 22px; }
+.panel { border-top: 1.5px solid var(--ink); padding-top: 10px; font-size: 12.5px; line-height: 1.55; }
+.panel ol, .panel ul { margin: 0; padding-left: 18px; }
+.panel li { margin-bottom: 3px; }
+.panel .mono { font-size: 11.5px; }
+table { border-collapse: collapse; width: 100%; font-size: 12px; }
+td { padding: 4px 6px 4px 0; vertical-align: top; border-bottom: 1px solid var(--line); line-height: 1.4; }
+td:first-child { width: 42%; font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="page">
+<div class="kicker">03 ЭТАПЫ</div>
+<h1>Этапы до защиты и критический путь</h1>
+
+<h2>Критический путь после перестройки</h2>
+<div class="chain">
+  <span class="c done"><b>С-1</b>Каркас</span><span class="to">→</span>
+  <span class="c done"><b>С-3</b>REST-интерфейс</span><span class="to">→</span>
+  <span class="c part"><b>С-4</b>Очередь</span><span class="to">→</span>
+  <span class="c part"><b>Т-3</b>Сборщик HH</span><span class="to">→</span>
+  <span class="c todo"><b>А-5</b>Приведение</span><span class="to">→</span>
+  <span class="c part"><b>М-2</b>Векторы</span><span class="to">→</span>
+  <span class="c ms">В2 01.11</span><span class="to">→</span>
+  <span class="c todo"><b>М-4</b>Разметка</span><span class="to">→</span>
+  <span class="c todo"><b>М-5</b>Формула</span><span class="to">→</span>
+  <span class="c todo"><b>С-9</b>Лента</span><span class="to">→</span>
+  <span class="c ms red">В3 08.11</span><span class="to">→</span>
+  <span class="c todo"><b>М-6 / С-10</b>Письма</span><span class="to">→</span>
+  <span class="c part"><b>К-8</b>Редактор</span><span class="to">→</span>
+  <span class="c todo"><b>Т-7</b>Сквозной сценарий</span><span class="to">→</span>
+  <span class="c ms">В4 22.11</span>
+</div>
+<div class="legend" style="margin-top:8px">
+  <span><i style="background:#e7f0eb;border:1.5px solid var(--ok)"></i>готово</span>
+  <span><i style="background:#f6ecd8;border:1.5px solid var(--part)"></i>начато</span>
+  <span><i style="background:var(--paper);border:1.5px solid var(--crit)"></i>не начато</span>
+</div>
+
+<div class="cols">
+  <div class="stage now">
+    <div class="sh"><div class="k">ЭТАП 0 · НЕДЕЛЯ 4 · СЕЙЧАС</div><div class="n">Запустить критический путь</div><div class="g">20.10 — 25.10<br>Первые настоящие вакансии в базе</div></div>
+    <div class="roles">
+      <div class="role"><span class="rn r-arch">АРХИТЕКТОР</span><span class="crit">А-4</span> миграция 00003: вакансии, навыки, векторы с версией модели · <b>А-9</b> демонстрационный набор</div>
+      <div class="role"><span class="rn r-back">СЕРВЕРНАЯ</span><span class="crit">С-4</span> обработчик очереди, SKIP LOCKED, повторы, планировщик · <b>С-16</b> порядок в репозитории</div>
+      <div class="role"><span class="rn r-jr">МЛАДШИЙ БЭКЕНД</span><b>СМ-1</b> запуск у себя, разбор кода, тесты store и auth</div>
+      <div class="role"><span class="rn r-qa">ТЕСТИРОВАНИЕ</span><span class="crit">Т-3</span> сборщик HH на Go через api.hh.ru, ответы в vacancy_raw как есть</div>
+      <div class="role"><span class="rn r-ml">МО</span><b>М-1</b> отчёт по моделям · <span class="crit">М-2</span> /embed, e5-base, пачки по 64</div>
+      <div class="role"><span class="rn r-front">КЛИЕНТ</span><b>К-13</b> вход и профиль на настоящем сервере</div>
+    </div>
+    <div class="chk"><span class="k">ГОТОВО, КОГДА</span>в базе ≥ 1000 сырых вакансий HH; /health отдаёт dim = 768</div>
+  </div>
+
+  <div class="stage">
+    <div class="sh"><div class="k">ЭТАП 1 · НЕДЕЛИ 5–6</div><div class="n">Данные и лента</div><div class="g">26.10 — 08.11<br>В2 01.11 → В3 08.11</div></div>
+    <div class="roles">
+      <div class="role"><span class="rn r-arch">АРХИТЕКТОР</span><span class="crit">А-5</span> зарплата, город, уровень · <b>А-6</b> 300 частых навыков · <b>А-7</b> дубли, строгий порог</div>
+      <div class="role"><span class="rn r-back">СЕРВЕРНАЯ</span><b>С-6</b> резюме (202 при сбое МО) · <span class="crit">С-9</span> лента · <b>С-13</b> проверочный сервер</div>
+      <div class="role"><span class="rn r-jr">МЛАДШИЙ БЭКЕНД</span><b>С-5</b> /vacancies, фильтры, страницы · <b>С-8</b> адреса портфолио</div>
+      <div class="role"><span class="rn r-ml">МО</span><b>М-3</b> /resume/parse · <span class="crit">М-5</span> формула · <b>М-10</b> P@10 в CI</div>
+      <div class="role"><span class="rn r-all">ВСЯ КОМАНДА · 28.10</span><span class="crit">М-4</span> разметка 200 пар за один день</div>
+      <div class="role"><span class="rn r-qa">ТЕСТИРОВАНИЕ</span><b>Т-6</b> испорченные ответы · <b>Т-5</b> REST и чужие данные (404)</div>
+      <div class="role"><span class="rn r-front">КЛИЕНТ</span><b>К-5, К-6</b> на сервере · <b>К-11</b> ошибки и телефон</div>
+    </div>
+    <div class="chk"><span class="k">В3 — МИНИМАЛЬНАЯ ВЕРСИЯ</span>на проверочном сервере новый пользователь загружает резюме и видит ленту с разбором оценки</div>
+  </div>
+
+  <div class="stage">
+    <div class="sh"><div class="k">ЭТАП 2 · НЕДЕЛИ 7–8</div><div class="n">Полный путь до письма</div><div class="g">09.11 — 22.11<br>Самые загруженные недели</div></div>
+    <div class="roles">
+      <div class="role"><span class="rn r-ml">МО</span><span class="crit">М-6</span> /letter, задание из 5 частей · <b>М-8</b> проверка выдуманного · <b>М-7</b> два задания</div>
+      <div class="role"><span class="rn r-back">СЕРВЕРНАЯ</span><span class="crit">С-10</span> письма, версии, доля правок</div>
+      <div class="role"><span class="rn r-jr">МЛАДШИЙ БЭКЕНД</span><b>СМ-2</b> проверки REST с Т-5 · <b>С-11</b> отклики и статусы</div>
+      <div class="role"><span class="rn r-front">КЛИЕНТ</span><span class="crit">К-8</span> редактор, подсветка, черновик в браузере · <b>К-9</b> выгрузка</div>
+      <div class="role"><span class="rn r-qa">ТЕСТИРОВАНИЕ</span><span class="crit">Т-7</span> сквозной сценарий в CI · <b>Т-4</b> SuperJob · <b>Т-8</b> нагрузка</div>
+      <div class="role"><span class="rn r-arch">АРХИТЕКТОР</span><b>А-8</b> индексы, p95 ленты &lt; 500 мс; подстраховка серверной части</div>
+    </div>
+    <div class="chk"><span class="k">В4 — 22.11</span>резюме → лента → письмо → правки → выгрузка; сквозной тест зелёный</div>
+  </div>
+
+  <div class="stage">
+    <div class="sh"><div class="k">ЭТАП 3 · НЕДЕЛИ 9–10</div><div class="n">Устойчивость</div><div class="g">23.11 — 06.12<br>Закрываем новые возможности</div></div>
+    <div class="roles">
+      <div class="role"><span class="rn r-back">СЕРВЕРНАЯ</span><b>С-15</b> отказы: таймауты, упрощённая лента</div>
+      <div class="role"><span class="rn r-jr">МЛАДШИЙ БЭКЕНД</span><b>С-7</b> GitHub · <b>С-12</b> журнал сбора, Telegram</div>
+      <div class="role"><span class="rn r-qa">ТЕСТИРОВАНИЕ</span><b>Т-9</b> приватность · <b>Т-12</b> отказы по таблице 6.3 · <b>Т-10</b></div>
+      <div class="role"><span class="rn r-ml">МО</span><b>М-9</b> веса, цель P@10 ≥ 70%</div>
+      <div class="role"><span class="rn r-front">КЛИЕНТ</span><b>К-10</b> доска откликов</div>
+      <div class="role"><span class="rn r-arch">АРХИТЕКТОР</span><b>А-10</b> качество данных для администратора</div>
+    </div>
+    <div class="chk"><span class="k">В5 — 06.12</span>все строки таблицы 6.3 проверены; новые задачи больше не берём</div>
+  </div>
+
+  <div class="stage">
+    <div class="sh"><div class="k">ЭТАП 4 · НЕДЕЛИ 11–12</div><div class="n">Доводка и защита</div><div class="g">07.12 — 20.12<br>Только ошибки и документы</div></div>
+    <div class="roles">
+      <div class="role"><span class="rn r-back">СЕРВЕРНАЯ · МЛАДШИЙ · КЛИЕНТ</span><b>С-14, СМ-3, К-12</b> исправление ошибок, доводка вида</div>
+      <div class="role"><span class="rn r-qa">ТЕСТИРОВАНИЕ</span><b>Т-11</b> приёмка итоговой версии</div>
+      <div class="role"><span class="rn r-ml">МО</span><b>М-11</b> инструкция, описание REST, отчёт о показателях</div>
+      <div class="role"><span class="rn r-arch">АРХИТЕКТОР</span><b>А-11</b> итоговое описание и схема базы</div>
+      <div class="role"><span class="rn r-all">ВСЯ КОМАНДА</span>замер «время на отклик» на 5 людях · презентация · видео · прогон защиты</div>
+    </div>
+    <div class="chk"><span class="k">В6 — 20.12</span>защита на проверочном сервере</div>
+  </div>
+</div>
+
+<div class="lower">
+  <div class="panel"><h2>Что резать при отставании</h2>
+    <ol>
+      <li><b>С-7</b> GitHub — портфолио из резюме и вручную</li>
+      <li><b>Т-4</b> источники кроме HH и SuperJob</li>
+      <li><b>А-10, С-12</b> качество данных, Telegram</li>
+      <li><b>М-7</b> — одно задание вместо двух</li>
+      <li><b>К-10</b> — статус списком без перетаскивания</li>
+      <li><b>А-6</b> — 300–500 навыков вместо 800</li>
+    </ol>
+    <p style="margin:8px 0 0"><b>Не режется никогда:</b> М-8 защита от выдуманного, Т-9 приватность, отказ от автоотправки, С-15 упрощённая лента.</p>
+  </div>
+  <div class="panel"><h2>Исправить в репозитории (С-16)</h2>
+    <ul>
+      <li>Сбор со страниц hh.ru браузером противоречит решению №7 — только api.hh.ru</li>
+      <li>Сборщик — на Go в <span class="mono">server/internal/sources</span></li>
+      <li>Удалить <span class="mono">.gitignore.txt</span>, <span class="mono">vacancy.json</span>, <span class="mono">requirements.txt</span> в корне и <span class="mono">__pycache__</span></li>
+      <li><span class="mono">e2e.yml</span> перенести в <span class="mono">.github/workflows</span></li>
+      <li>Папки с кириллицей и пробелами → <span class="mono">e2e/</span>, <span class="mono">docs/hh-api.md</span></li>
+    </ul>
+  </div>
+  <div class="panel"><h2>Главные риски</h2>
+    <table>
+      <tr><td>HH: частота запросов, предел 2000 на запрос</td><td>дробить по дням и регионам, Retry-After; А-9 как запасные данные</td></tr>
+      <tr><td>Векторы медленно считаются на процессоре</td><td>пачки по 64 в фоне; для защиты хватит 50 тыс.</td></tr>
+      <tr><td>Языковая модель недоступна или дорогая</td><td>прослойка, 503 с понятным сообщением, без тихого шаблона</td></tr>
+      <tr><td>Перегруз недель 7–8</td><td>младший бэкенд снимает с серверной части вакансии, портфолио и отклики; клиент забирает К-11 раньше</td></tr>
+      <tr><td>Утечка чужих данных</td><td>user_id в каждом запросе store/; Т-5 и Т-9 в CI</td></tr>
+    </table>
+  </div>
+</div>
+</div>
+</body>
+</html>
