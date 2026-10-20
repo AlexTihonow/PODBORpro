@@ -1,6 +1,0 @@
-{
-  "error": {
-    "code": "invalid_credentials",
-    "message": "Неверная почта или пароль"
-  }
-}

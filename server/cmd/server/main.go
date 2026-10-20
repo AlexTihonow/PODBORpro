@@ -6,7 +6,7 @@
 //	DATABASE_URL  адрес PostgreSQL (обязательно)
 //	JWT_SECRET    секрет подписи токенов, от 32 символов (обязательно)
 //	HTTP_ADDR     адрес, на котором слушать (по умолчанию :8080)
-//	WEB_DIR       папка с готовой сборкой клиентской части (по умолчанию ./web/dist)
+//	WEB_DIR       папка со статической клиентской частью (по умолчанию ./web)
 //
 // Флаг -migrate-only применяет изменения схемы и завершает работу (для автоматической проверки).
 package main
@@ -78,7 +78,7 @@ func run(log *slog.Logger, migrateOnly bool) error {
 		Auth:   auth.NewService(st, tokens),
 		Tokens: tokens,
 		DB:     st,
-		WebDir: getenv("WEB_DIR", "./web/dist"),
+		WebDir: getenv("WEB_DIR", "./web"),
 		Log:    log,
 	})
 	if err != nil {

@@ -8,7 +8,7 @@
 
 | Папка | Что внутри | Стек |
 |---|---|---|
-| `web/` | Клиентская часть | React, Vite, TypeScript |
+| `web/` | Клиентская часть | HTML, CSS, JavaScript — без фреймворков и сборки |
 | `server/` | REST-интерфейс `/api/v1`, раздаёт и клиента | Go, PostgreSQL + pgvector |
 | `ml/` | Сервис моделей (доступен только серверу) | Python |
 | `Сквозные тесты Playwright/` | Сквозные (e2e) тесты | Playwright |
@@ -17,19 +17,13 @@
 ## Что нужно установить
 
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/)
-- Node.js 22.13+ и pnpm (`npm i -g pnpm`)
 - Go 1.26+ — только если запускать сервер без Docker
+
+Для разработки клиента достаточно любого статического сервера (например, встроенного в Python).
 
 ## Запуск всей системы
 
 ```bash
-# 1. Собрать клиента (сервер раздаёт готовую сборку из web/dist)
-cd web
-pnpm install
-VITE_USE_STUBS=false pnpm run build
-cd ..
-
-# 2. Поднять базу, сервис моделей и сервер
 docker compose up -d --build --wait
 ```
 
@@ -47,18 +41,21 @@ curl http://localhost:8080/api/v1/health
 
 ```bash
 cd web
-pnpm install
-pnpm run dev
+node dev-server.mjs
 ```
 
 Клиент откроется на http://localhost:5173. По умолчанию он работает на **заглушках** — сервер не нужен.
-Чтобы ходить в настоящий сервер (запросы `/api` проксируются на `localhost:8080`):
+`dev-server.mjs` — крошечный сервер на встроенных модулях Node без зависимостей: он умеет отдавать
+`index.html` для клиентских маршрутов вроде `/feed` и `/letters/15`.
 
-```bash
-VITE_USE_STUBS=false pnpm run dev
-```
+Клиент — обычные ES-модули, поэтому сборка не требуется: правьте файлы в `web/` и обновляйте страницу.
+Чтобы обратиться к настоящему серверу, откройте приложение с сервера на `http://localhost:8080`
+или добавьте `?stubs=0` к адресу. Обратное поведение — `?stubs=1`.
 
-После изменения `server/api/openapi.yaml` пересоздать типы и заглушки: `pnpm run generate`.
+Полезные адреса для проверки состояний: `/dev/components`, `/feed?preview=loading`,
+`/feed?preview=empty`, `/feed?preview=error`, `/applications?preview=empty`.
+
+Демо-триггеры заглушек: вход с почтой `wrong@mail.ru` даёт ошибку, регистрация с `taken@mail.ru` — «почта занята».
 
 ## Разработка сервера без Docker
 
@@ -86,6 +83,7 @@ BASE_URL=http://localhost:8080 npx playwright test --config e2e/playwright.confi
 ## GitHub Pages
 
 Каждый пуш в `main` публикует клиента на GitHub Pages (`.github/workflows/pages.yml`).
-Демо собирается **на заглушках**: сервера на Pages нет, данные ненастоящие.
+Сборка не нужна: workflow подставляет базовый путь и выкладывает папку `web/`.
+Демо работает **на заглушках**: сервера на Pages нет, данные ненастоящие.
 
 Первый раз нужно включить Pages в репозитории: **Settings → Pages → Source: GitHub Actions**.

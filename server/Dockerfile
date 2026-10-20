@@ -9,7 +9,7 @@ FROM alpine:3.22
 RUN adduser -D -H app
 WORKDIR /app
 COPY --from=build /out/server /app/server
-# Сюда монтируется готовая сборка клиентской части (web/dist).
+# Сюда монтируется статическая клиентская часть (web/).
 RUN mkdir -p /app/web && chown app /app/web
 USER app
 ENV HTTP_ADDR=:8080 WEB_DIR=/app/web

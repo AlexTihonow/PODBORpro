@@ -14,13 +14,6 @@ _env
 node_modules/
 .pnpm-store/
 
-# артефакты сборки
-*.tsbuildinfo
-
-# сборка клиентской части
-web/dist/*
-!web/dist/.gitkeep
-
 # ML
 ml/research/download_models.py
 

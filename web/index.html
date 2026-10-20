@@ -2,12 +2,24 @@
 <html lang="ru">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="%BASE_URL%favicon.svg" />
+    <base href="/" />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#4f46e5" />
+    <meta
+      name="description"
+      content="PODBORpro — умный поиск работы: персональная лента вакансий, отклики и сопроводительные письма."
+    />
     <title>PODBORpro — поиск работы по-умному</title>
+    <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <div id="root">
+      <div class="boot">
+        <div class="boot__mark">П</div>
+        <p class="boot__text">Загружаем PODBORpro…</p>
+      </div>
+    </div>
+    <script type="module" src="js/app.js"></script>
   </body>
 </html>

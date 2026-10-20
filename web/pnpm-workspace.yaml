@@ -1,3 +1,0 @@
-# Настройки pnpm (>=11): разрешаем build-скрипт esbuild (нужен Vite).
-allowBuilds:
-  esbuild: true
