@@ -15,17 +15,13 @@ function read(key) {
 function write(key, value) {
   try {
     localStorage.setItem(key, value);
-  } catch {
-    // Приватный режим или переполненное хранилище — демо продолжает работать без сохранения.
-  }
+  } catch {}
 }
 
 function remove(key) {
   try {
     localStorage.removeItem(key);
-  } catch {
-    // Ничего не делаем: данные просто останутся до закрытия вкладки.
-  }
+  } catch {}
 }
 
 export function getAccessToken() {

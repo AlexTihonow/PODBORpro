@@ -1,5 +1,3 @@
-/* PODBORpro — оформление без внешних библиотек и шрифтов. */
-
 :root {
   --brand-50: #eef2ff;
   --brand-100: #e0e7ff;
@@ -120,8 +118,6 @@ svg {
   padding: 0 24px;
 }
 
-/* ---------- загрузочный экран ---------- */
-
 .boot {
   min-height: 100vh;
   display: flex;
@@ -156,8 +152,6 @@ svg {
     opacity: 0.85;
   }
 }
-
-/* ---------- логотип ---------- */
 
 .logo {
   display: inline-flex;
@@ -215,8 +209,6 @@ svg {
   background: none;
   color: #c7d2fe;
 }
-
-/* ---------- кнопки ---------- */
 
 .btn {
   display: inline-flex;
@@ -332,8 +324,6 @@ svg {
     transform: rotate(360deg);
   }
 }
-
-/* ---------- поля ---------- */
 
 .field {
   display: flex;
@@ -484,8 +474,6 @@ svg {
   color: var(--ink);
 }
 
-/* ---------- сообщения ---------- */
-
 .alert {
   display: flex;
   align-items: flex-start;
@@ -527,8 +515,6 @@ svg {
   border-color: var(--success-edge);
   color: var(--success);
 }
-
-/* ---------- бейджи, чипы ---------- */
 
 .badge {
   display: inline-flex;
@@ -577,8 +563,6 @@ svg {
   background: var(--surface-muted);
 }
 
-/* ---------- карточки ---------- */
-
 .card {
   background: var(--surface);
   border: 1px solid var(--edge);
@@ -606,8 +590,6 @@ svg {
   font-size: 13.5px;
 }
 
-/* ---------- загрузка ---------- */
-
 .skeleton {
   border-radius: 8px;
   background: linear-gradient(90deg, #eceef6 25%, #f8f9fd 37%, #eceef6 63%);
@@ -633,8 +615,6 @@ svg {
   height: 66px;
   border-radius: 20px;
 }
-
-/* ---------- пусто / ошибка ---------- */
 
 .empty-state,
 .error-state {
@@ -684,8 +664,6 @@ svg {
 .error-state__retry {
   margin-top: 8px;
 }
-
-/* ---------- шапка ---------- */
 
 .app-header {
   position: sticky;
@@ -793,8 +771,6 @@ svg {
   padding: 36px 24px 72px;
 }
 
-/* ---------- заголовок страницы ---------- */
-
 .page-hero {
   display: flex;
   align-items: flex-end;
@@ -876,8 +852,6 @@ svg {
   color: var(--ink-subtle);
   white-space: nowrap;
 }
-
-/* ---------- лента ---------- */
 
 .feed-grid {
   display: grid;
@@ -1070,8 +1044,6 @@ svg {
   animation: none;
 }
 
-/* ---------- логотипы компаний ---------- */
-
 .company-logo {
   width: 48px;
   height: 48px;
@@ -1119,8 +1091,6 @@ svg {
   border-radius: 9px;
   font-size: 11px;
 }
-
-/* ---------- кольцо совпадения ---------- */
 
 .score-ring {
   position: relative;
@@ -1171,8 +1141,6 @@ svg {
 .score-ring--lg::before {
   inset: 6px;
 }
-
-/* ---------- карточка вакансии ---------- */
 
 .vacancy {
   display: flex;
@@ -1305,8 +1273,6 @@ svg {
   color: var(--ink-subtle);
 }
 
-/* ---------- разбор оценки ---------- */
-
 .score-breakdown {
   padding: 28px;
 }
@@ -1384,8 +1350,6 @@ svg {
     width: 0;
   }
 }
-
-/* ---------- доска откликов ---------- */
 
 .board {
   display: grid;
@@ -1589,8 +1553,6 @@ svg {
   height: 13px;
 }
 
-/* ---------- редактор письма ---------- */
-
 .editor {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 300px;
@@ -1749,8 +1711,6 @@ svg {
   font-size: 12px;
   color: var(--ink-subtle);
 }
-
-/* ---------- первичная настройка ---------- */
 
 .onboarding {
   display: flex;
@@ -1993,8 +1953,6 @@ svg {
   color: #fff;
 }
 
-/* ---------- вход и регистрация ---------- */
-
 .auth-page {
   min-height: 100vh;
   display: grid;
@@ -2163,8 +2121,6 @@ svg {
   color: var(--ink-muted);
 }
 
-/* ---------- служебная страница ---------- */
-
 .dev-page {
   display: flex;
   flex-direction: column;
@@ -2250,8 +2206,6 @@ svg {
   font-size: 13px;
 }
 
-/* ---------- 404 ---------- */
-
 .not-found {
   min-height: 100vh;
   display: flex;
@@ -2307,8 +2261,6 @@ svg {
   margin-top: 26px;
 }
 
-/* ---------- прочее ---------- */
-
 .line-clamp-2 {
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -2337,8 +2289,6 @@ svg {
     scroll-behavior: auto !important;
   }
 }
-
-/* ---------- адаптивность ---------- */
 
 @media (max-width: 1080px) {
   .board {

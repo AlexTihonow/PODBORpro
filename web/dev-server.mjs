@@ -1,5 +1,3 @@
-// Крошечный статический сервер для локальной разработки: без зависимостей.
-// Отдаёт файлы из web/ и возвращает index.html для адресов клиентского роутера.
 import { createReadStream, existsSync, statSync } from "node:fs";
 import { createServer } from "node:http";
 import { extname, join, resolve } from "node:path";

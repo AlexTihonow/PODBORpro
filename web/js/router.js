@@ -1,9 +1,5 @@
 const listeners = new Set();
 
-/**
- * Базовый путь приложения. Локально это "/", на GitHub Pages — "/PODBORpro/".
- * Значение берём из <base href>, поэтому один и тот же файл работает везде.
- */
 function getBase() {
   const base = document.querySelector("base")?.getAttribute("href") ?? "/";
   try {

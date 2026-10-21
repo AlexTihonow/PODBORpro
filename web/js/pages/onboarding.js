@@ -236,9 +236,7 @@ export function renderOnboardingPage() {
 
       try {
         await patchMe(profile);
-      } catch {
-        // В демо профиль сохраняем локально даже без сервера.
-      }
+      } catch {}
       setProfile(profile);
       navigate("/feed");
     });

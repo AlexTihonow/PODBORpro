@@ -93,9 +93,7 @@ export function renderLoginPage() {
         const me = await getMe();
         setProfile(me.profile);
         resumeStatus = me.profile?.resume_status ?? null;
-      } catch {
-        // Профиль подтянется в шапке после перехода.
-      }
+      } catch {}
 
       navigate(resumeStatus === "none" ? "/onboarding" : from || "/feed");
     } catch (error) {
@@ -226,9 +224,7 @@ export function renderRegisterPage() {
         const me = await getMe();
         setProfile(me.profile);
         resumeStatus = me.profile?.resume_status ?? null;
-      } catch {
-        // Ничего страшного: профиль загрузится позже.
-      }
+      } catch {}
 
       navigate(resumeStatus === "none" ? "/onboarding" : "/feed");
     } catch (error) {

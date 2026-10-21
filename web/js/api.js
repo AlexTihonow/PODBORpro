@@ -25,9 +25,7 @@ function shouldUseStubs() {
   try {
     const saved = localStorage.getItem("podbor.use_stubs");
     if (saved !== null) return saved !== "false";
-  } catch {
-    // Хранилище недоступно — используем автоопределение.
-  }
+  } catch {}
 
   if (location.protocol === "file:") return true;
   if (location.hostname.endsWith("github.io")) return true;
@@ -73,9 +71,7 @@ async function requestHttp(method, path, body, options) {
   let data = null;
   try {
     data = await response.json();
-  } catch {
-    // Тело ответа может быть пустым.
-  }
+  } catch {}
 
   if (!response.ok) {
     const error = data?.error ?? {};
@@ -85,10 +81,6 @@ async function requestHttp(method, path, body, options) {
 
   return data;
 }
-
-/* ------------------------------------------------------------------ */
-/* Демо-данные и заглушки                                             */
-/* ------------------------------------------------------------------ */
 
 const V = {
   goJunior: {
@@ -552,10 +544,6 @@ function findClaims(content) {
 function clone(value) {
   return typeof structuredClone === "function" ? structuredClone(value) : JSON.parse(JSON.stringify(value));
 }
-
-/* ------------------------------------------------------------------ */
-/* Публичные методы API                                               */
-/* ------------------------------------------------------------------ */
 
 export const login = (email, password) => request("POST", "/auth/login", { email, password });
 export const register = (body) => request("POST", "/auth/register", body);

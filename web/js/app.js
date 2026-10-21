@@ -121,9 +121,7 @@ async function boot() {
       const me = await getMe();
       setStoredUser({ id: me.id, email: me.email, full_name: me.full_name, is_admin: me.is_admin });
       setProfile(me.profile);
-    } catch {
-      // Если токен устарел, api.js уже очистил его и маршрут уведёт на вход.
-    }
+    } catch {}
   }
   route();
 }
