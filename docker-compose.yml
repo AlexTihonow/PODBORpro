@@ -38,8 +38,8 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      # Готовая сборка клиентской части (npm run build в папке web).
-      - ./web/dist:/app/web:ro
+      # Статическая клиентская часть на чистом HTML/CSS/JS — без сборки.
+      - ./web:/app/web:ro
 
 volumes:
   pgdata:

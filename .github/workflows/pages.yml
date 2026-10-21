@@ -1,6 +1,6 @@
 name: pages
 
-# Демо клиентской части на GitHub Pages: работает на заглушках, без сервера.
+# Демо клиентской части на GitHub Pages: чистые HTML/CSS/JS, без сборки.
 on:
   push:
     branches: [main]
@@ -18,37 +18,20 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: web
     steps:
       - uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 11
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-          cache-dependency-path: web/pnpm-lock.yaml
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Build
-        run: pnpm exec tsc -b && pnpm exec vite build --base=/${{ github.event.repository.name }}/
-        env:
-          VITE_USE_STUBS: "true"
+      # Подпроект Pages живёт по адресу /<repo>/, поэтому подставляем base href.
+      - name: Set base path for GitHub Pages
+        run: sed -i 's|<base href="/"[^>]*>|<base href="/${{ github.event.repository.name }}/">|' web/index.html
 
       # Pages не знает про маршруты клиента: /feed отдаём той же страницей.
       - name: SPA fallback
-        run: cp dist/index.html dist/404.html
+        run: cp web/index.html web/404.html
 
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: web/dist
+          path: web
 
   deploy:
     needs: build

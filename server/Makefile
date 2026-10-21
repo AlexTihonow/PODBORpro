@@ -18,5 +18,5 @@ test-db: api/types.gen.go
 run: api/types.gen.go
 	DATABASE_URL=postgres://podbor:podbor@localhost:5432/podbor?sslmode=disable \
 	JWT_SECRET=dev-secret-dev-secret-dev-secret-dev \
-	WEB_DIR=../web/dist \
+	WEB_DIR=../web \
 	go run ./cmd/server

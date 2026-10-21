@@ -19,21 +19,21 @@ test('Несуществующая страница показывает "Не �
 
 test('Вход на заглушке успешен', async ({ page }) => {
   await page.goto('/login');
-  await page.getByTestId('email-input').fill('test@example.com');
-  await page.getByTestId('password-input').fill('password123');
-  await page.getByTestId('submit-login').click();
+  await page.getByTestId('login-email').fill('test@example.com');
+  await page.getByTestId('login-password').fill('password123');
+  await page.getByTestId('login-submit').click();
   // Ожидаем редирект на feed или onboarding
   await expect(page).toHaveURL(/.*\/(feed|onboarding)/);
 });
 
 test('Ошибка входа очищает поле пароля и показывает сообщение', async ({ page }) => {
   await page.goto('/login');
-  await page.getByTestId('email-input').fill('wrong@example.com');
-  await page.getByTestId('password-input').fill('wrongpassword');
-  await page.getByTestId('submit-login').click();
-  
-  await expect(page.getByTestId('error-message')).toContainText('Неверная почта или пароль');
-  await expect(page.getByTestId('password-input')).toHaveValue('');
+  await page.getByTestId('login-email').fill('wrong@example.com');
+  await page.getByTestId('login-password').fill('wrongpassword');
+  await page.getByTestId('login-submit').click();
+
+  await expect(page.getByTestId('login-error')).toContainText('Неверная почта или пароль');
+  await expect(page.getByTestId('login-password')).toHaveValue('');
 });
 
 test('Сервер жив (Health check)', async ({ request }) => {

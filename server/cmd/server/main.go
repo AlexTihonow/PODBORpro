@@ -66,7 +66,7 @@ func run(log *slog.Logger, migrateOnly bool) error {
 		Auth:   auth.NewService(st, tokens),
 		Tokens: tokens,
 		Store:  st,
-		WebDir: cmp.Or(os.Getenv("WEB_DIR"), "./web/dist"),
+		WebDir: cmp.Or(os.Getenv("WEB_DIR"), "./web"),
 		Log:    log,
 	})
 	if err != nil {
