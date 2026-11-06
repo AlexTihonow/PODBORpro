@@ -1,0 +1,187 @@
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: rgba(255, 255, 255, 0.82);
+  border-bottom: 1px solid rgba(229, 231, 239, 0.9);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.header-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  min-height: 72px;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  min-width: 0;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.app-nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.app-nav__link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 13px;
+  border-radius: 10px;
+  color: var(--ink-muted);
+  font-size: 13.5px;
+  font-weight: 650;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.app-nav__link:hover {
+  background: var(--surface-muted);
+  color: var(--ink);
+}
+
+.app-nav__link--active {
+  background: var(--brand-50);
+  color: var(--brand-700);
+}
+
+.app-nav__icon {
+  width: 17px;
+  height: 17px;
+}
+
+.user-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px 4px 4px;
+  border-radius: 999px;
+  border: 1px solid var(--edge);
+  background: var(--surface);
+}
+
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--brand-500), var(--violet));
+  color: #fff;
+  font-weight: 750;
+  flex: none;
+}
+
+.avatar--sm {
+  width: 30px;
+  height: 30px;
+  font-size: 11px;
+}
+
+.user-pill__name {
+  font-size: 13px;
+  font-weight: 650;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-main {
+  padding: 36px 24px 72px;
+}
+
+.page-hero {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 32px;
+  padding: 6px 0 28px;
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 11px;
+  border-radius: 999px;
+  background: var(--brand-50);
+  color: var(--brand-700);
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.eyebrow .icon {
+  width: 14px;
+  height: 14px;
+}
+
+.eyebrow--light {
+  background: rgba(255, 255, 255, 0.14);
+  color: #e0e7ff;
+}
+
+.page-title {
+  font-size: clamp(27px, 3.6vw, 38px);
+  line-height: 1.1;
+  letter-spacing: -0.035em;
+  font-weight: 800;
+  margin: 14px 0 10px;
+}
+
+.page-subtitle {
+  max-width: 640px;
+  color: var(--ink-muted);
+  font-size: 14.5px;
+  line-height: 1.6;
+}
+
+.hero-stats {
+  display: flex;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid var(--edge);
+  border-radius: 18px;
+  padding: 7px;
+  box-shadow: var(--shadow-card);
+  backdrop-filter: blur(10px);
+}
+
+.hero-stat {
+  min-width: 96px;
+  padding: 10px 14px;
+  text-align: center;
+  border-radius: 12px;
+}
+
+.hero-stat + .hero-stat {
+  border-left: 1px solid var(--edge);
+}
+
+.hero-stat strong {
+  display: block;
+  font-size: 20px;
+  letter-spacing: -0.03em;
+  line-height: 1.2;
+}
+
+.hero-stat span {
+  font-size: 10.5px;
+  color: var(--ink-subtle);
+  white-space: nowrap;
+}

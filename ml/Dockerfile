@@ -1,7 +1,10 @@
-FROM python:3.12-slim
+FROM node:24-slim
 WORKDIR /app
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-COPY app ./app
+ENV LAYA_CACHE=/models
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev
+COPY laya.revision tsconfig.json ./
+COPY src ./src
+VOLUME /models
 EXPOSE 8000
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["node", "src/server.ts"]

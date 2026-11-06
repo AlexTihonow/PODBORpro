@@ -1,61 +1,79 @@
-// Package store — все SQL-запросы к базе. Других мест с SQL в программе нет.
-//
-// # ПРАВИЛО ДОСТУПА К ЛИЧНЫМ ДАННЫМ
-//
-// Каждая функция, которая читает или меняет личные данные (профиль, портфолио,
-// письма, отклики), обязательно принимает userID первым параметром после ctx
-// и добавляет в SQL-запрос условие `AND user_id = $N`. Если запись не нашлась —
-// возвращает ErrNotFound, а обработчик отвечает 404.
-//
-//   - Проверку невозможно забыть: без userID функцию не вызвать, код не соберётся.
-//   - Чужая запись и несуществующая выглядят одинаково (404). Ответ 403 выдал бы,
-//     что запись с таким номером существует.
-//   - Обработчик не проверяет права сам, он просто передаёт httpapi.UserID(ctx).
-//
-// Образец:
-//
-//	func (s *Store) GetLetter(ctx context.Context, userID, letterID int64) (Letter, error) {
-//	    err := s.db.QueryRow(ctx,
-//	        `SELECT l.id, l.content, l.version
-//	           FROM letters l JOIN applications a ON a.id = l.application_id
-//	          WHERE l.id = $1 AND a.user_id = $2`,
-//	        letterID, userID).Scan(&l.ID, &l.Content, &l.Version)
-//	    if errors.Is(err, pgx.ErrNoRows) {
-//	        return Letter{}, ErrNotFound
-//	    }
-//	    ...
-//	}
-//
-// Единственное исключение — поиск пользователя по почте при входе: в этот момент
-// userID ещё неизвестен.
 package store
 
 import (
 	"context"
 	"errors"
+	"fmt"
+	"time"
 
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 var (
-	// ErrNotFound — записи нет или она принадлежит другому пользователю.
 	ErrNotFound = errors.New("store: not found")
-	// ErrEmailTaken — пользователь с такой почтой уже есть.
+
 	ErrEmailTaken = errors.New("store: email taken")
 )
 
-// Код ошибки PostgreSQL «нарушение уникальности».
 const pgUniqueViolation = "23505"
 
 type Store struct {
 	db *pgxpool.Pool
 }
 
-func New(db *pgxpool.Pool) *Store {
-	return &Store{db: db}
+func New(db *pgxpool.Pool) *Store { return &Store{db: db} }
+
+func (s *Store) Ping(ctx context.Context) error { return s.db.Ping(ctx) }
+
+type User struct {
+	ID           int64
+	Email        string
+	PasswordHash string
+	FullName     string
+	IsAdmin      bool
+	CreatedAt    time.Time
 }
 
-// Ping проверяет, что база отвечает.
-func (s *Store) Ping(ctx context.Context) error {
-	return s.db.Ping(ctx)
+const userCols = `id, email, password_hash, full_name, is_admin, created_at`
+
+func scanUser(row pgx.Row) (User, error) {
+	var u User
+	err := row.Scan(&u.ID, &u.Email, &u.PasswordHash, &u.FullName, &u.IsAdmin, &u.CreatedAt)
+	return u, err
+}
+
+func (s *Store) CreateUser(ctx context.Context, email, passwordHash, fullName string) (User, error) {
+	var u User
+	err := pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) (err error) {
+		u, err = scanUser(tx.QueryRow(ctx,
+			`INSERT INTO users (email, password_hash, full_name) VALUES ($1, $2, $3) RETURNING `+userCols,
+			email, passwordHash, fullName))
+		if err != nil {
+			return err
+		}
+		_, err = tx.Exec(ctx, `INSERT INTO profiles (user_id) VALUES ($1)`, u.ID)
+		return err
+	})
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == pgUniqueViolation {
+		return User{}, ErrEmailTaken
+	}
+	if err != nil {
+		return User{}, fmt.Errorf("create user: %w", err)
+	}
+	return u, nil
+}
+
+func (s *Store) GetUserByEmail(ctx context.Context, email string) (User, error) {
+	u, err := scanUser(s.db.QueryRow(ctx,
+		`SELECT `+userCols+` FROM users WHERE lower(email) = lower($1)`, email))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return User{}, ErrNotFound
+	}
+	if err != nil {
+		return User{}, fmt.Errorf("get user by email: %w", err)
+	}
+	return u, nil
 }

@@ -1,0 +1,31 @@
+user_agent: "PODBORpro-bot/1.0 (+https://github.com/AlexTihonow/PODBORpro)"
+pause: 3s-6s
+max_pages_per_query: 20
+
+sources:
+  - code: headhunter
+    render: http
+    queries:
+      - url: "https://hh.ru/vacancies/go-razrabotchik"
+      - url: "https://hh.ru/vacancies/starshij-razrabotchik-python"
+      - url: "https://hh.ru/vacancies/full-stack-js-developer"
+      - url: "https://hh.ru/vacancies/quality-assurance-engineer"
+      - url: "https://hh.ru/vacancies/junior-devops-engineer"
+      - url: "https://hh.ru/vacancies/veduschij-backend-razrabotchik"
+      - url: "https://hh.ru/vacancies/razrabotchik"
+
+  - code: habr
+    queries:
+      - url: "https://career.habr.com/vacancies?type=all&sort=date&q=backend"
+      - url: "https://career.habr.com/vacancies?type=all&sort=date&q=frontend"
+      - url: "https://career.habr.com/vacancies?type=all&sort=date&q=qa"
+      - url: "https://career.habr.com/vacancies?type=all&sort=date&q=devops"
+
+bootstrap_queries:
+  headhunter:
+    queries:
+      - url: "https://hh.ru/sitemap/main.xml"
+        match: [razrabotchik, programmist, developer, engineer, testirov, devops, analitik, qa-, data]
+  habr:
+    split_by: [qid]
+    qids: [1, 2, 3, 4, 5, 6]

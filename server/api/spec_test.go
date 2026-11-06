@@ -12,8 +12,6 @@ func TestSpecIsValid(t *testing.T) {
 	}
 }
 
-// Адреса из раздела 4.5 общего документа плюс /skills и /health.
-// Убрать адрес из описания можно только вместе со строкой здесь — это изменение договора.
 var requiredOperations = []string{
 	"GET /health",
 	"POST /auth/register",
@@ -59,8 +57,6 @@ func TestSpecHasAllOperations(t *testing.T) {
 	}
 }
 
-// У каждого ответа с телом должен быть пример: из него сервер отвечает заглушкой,
-// а клиентская часть строит свои. Каждый адрес перечисляет хотя бы одну ошибку.
 func TestSpecResponsesHaveExamples(t *testing.T) {
 	doc, err := Load()
 	if err != nil {

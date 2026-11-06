@@ -1,11 +1,11 @@
 openapi: 3.1.0
 info:
   title: PODBORpro — внутренний интерфейс сервиса моделей
-  version: 0.1.0-draft
+  version: 0.2.0
   description: |
-    Черновик по таблице инженера по машинному обучению. Снаружи недоступен:
-    обращается только сервер на Go по внутренней сети Docker.
-    Пределы ожидания на стороне Go: /embed — 3 с, /letter — 30 с.
+    Сервис моделей на Node.js и @receptron/laya (многоязычная контрольная точка).
+    Снаружи недоступен: обращаются сборщик и сервер на Go.
+    /resume/parse и /letter описаны, но ещё не реализованы.
 
 servers:
   - url: http://ml:8000
@@ -15,41 +15,61 @@ paths:
     get:
       operationId: health
       summary: Проверка, что сервис жив и модель загружена
-      description: Пока модель загружается (5–15 секунд), отвечает 503 со status = loading.
+      description: Пока веса скачиваются и загружаются, отвечает 503 со status = loading.
       responses:
         "200":
           description: Готов
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Health" }
-              example: { status: ok, model: multilingual-e5-base, dim: 768 }
+              example: { status: ok, model: duration465/laya-onnx@94d8afa/multilingual, revision: 94d8afa4944520285b8ccebc174be4d24896d796 }
         "503":
-          description: Модель ещё загружается
+          description: Модель ещё загружается или не загрузилась
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Health" }
-              example: { status: loading, model: null, dim: null }
+              example: { status: loading, model: null, revision: 94d8afa4944520285b8ccebc174be4d24896d796 }
 
-  /embed:
+  /classify:
     post:
-      operationId: embed
-      summary: Векторы для списка текстов
+      operationId: classify
+      summary: Разметка вакансий моделью Laya multilingual
       description: |
-        `kind` нужен моделям вида e5: сервис сам добавит приставку `query: ` или `passage: `.
-        Серверу на Go не нужно знать об особенностях конкретной модели.
+        Каскад «правила → Laya». Формат работы берётся из поля сайта, английский
+        определяется правилами, а модель спрашивается только там, где правило не решило.
+        Грейд берётся из названия, если в нём ровно один уровень; иначе модель выбирает
+        из двух уровней, подходящих под опыт с сайта.
+        Направление сначала ищут правила по названию и навыкам; модель спускается по дереву тегов
+        (один вопрос choice на уровень) только там, где правило не дошло до листа.
       requestBody:
         required: true
         content:
           application/json:
-            schema: { $ref: "#/components/schemas/EmbedRequest" }
-            example: { texts: [Разработчик на Go, PostgreSQL], kind: passage }
+            schema: { $ref: "#/components/schemas/ClassifyRequest" }
+            example:
+              items:
+                - id: "headhunter:137568898"
+                  title: Junior+ golang разработчик
+                  text: "Опыт: 1–3 года. Требования: Go, PostgreSQL, английский B1"
+                  experience: 1–3 года
+                  work_format_raw: удалённо
+                  skills: [Go, PostgreSQL]
       responses:
         "200":
-          description: Векторы в том же порядке, что и тексты
+          description: Ответы в том же порядке, что и вакансии
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/EmbedResponse" }
-              example: { vectors: [[0.012, -0.034, 0.051], [0.007, 0.021, -0.016]], model: multilingual-e5-base, dim: 768 }
+              schema: { $ref: "#/components/schemas/ClassifyResponse" }
+              example:
+                model: duration465/laya-onnx@94d8afa/multilingual
+                items:
+                  - id: "headhunter:137568898"
+                    answers:
+                      tags: [{ path: it/backend/go, label: Backend / Go, confidence: 0.95, stopped: leaf, source: rule }]
+                      grade: { value: junior, confidence: 0.95, source: rule }
+                      work_format: { value: remote, confidence: 0.95, source: source }
+                      english: { value: true, confidence: 0.95, source: rule }
+                    needs_review: false
         "400": { $ref: "#/components/responses/BadRequest" }
         "503": { $ref: "#/components/responses/Unavailable" }
 
@@ -133,34 +153,70 @@ components:
 
     Health:
       type: object
-      required: [status, model, dim]
+      required: [status, model, revision]
       properties:
-        status: { type: string, enum: [ok, loading] }
+        status: { type: string, enum: [ok, loading, error] }
         model: { type: [string, "null"] }
-        dim: { type: [integer, "null"] }
+        revision: { type: string }
 
-    EmbedRequest:
+    ClassifyRequest:
       type: object
-      required: [texts, kind]
+      required: [items]
       properties:
-        texts:
+        items:
           type: array
           minItems: 1
-          maxItems: 64
-          items: { type: string }
-        kind: { type: string, enum: [query, passage] }
+          maxItems: 32
+          items:
+            type: object
+            required: [id, title, text]
+            properties:
+              id: { type: string }
+              title: { type: string }
+              text: { type: string }
+              experience: { type: string }
+              work_format_raw: { type: string }
+              skills: { type: array, items: { type: string } }
 
-    EmbedResponse:
+    Label:
       type: object
-      required: [vectors, model, dim]
+      required: [value, confidence, source]
       properties:
-        vectors:
+        value: {}
+        confidence: { type: number }
+        source: { type: string, enum: [rule, laya, source] }
+
+    Tag:
+      type: object
+      required: [path, label, confidence, stopped, source]
+      properties:
+        path: { type: string }
+        label: { type: string }
+        confidence: { type: number }
+        stopped: { type: string, enum: [leaf, low_confidence, other] }
+        source: { type: string, enum: [rule, laya] }
+
+    ClassifyResponse:
+      type: object
+      required: [model, items]
+      properties:
+        model: { type: string }
+        items:
           type: array
           items:
-            type: array
-            items: { type: number, format: float }
-        model: { type: string, description: Версия модели — хранится рядом с векторами }
-        dim: { type: integer }
+            type: object
+            required: [id, answers, needs_review]
+            properties:
+              id: { type: string }
+              needs_review: { type: boolean }
+              answers:
+                type: object
+                required: [tags, grade, work_format, english]
+                properties:
+                  tags: { type: array, items: { $ref: "#/components/schemas/Tag" } }
+                  grade: { $ref: "#/components/schemas/Label" }
+                  work_format: { $ref: "#/components/schemas/Label" }
+                  english: { $ref: "#/components/schemas/Label" }
 
     Project:
       type: object

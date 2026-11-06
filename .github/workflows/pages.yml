@@ -1,6 +1,5 @@
 name: pages
 
-# Демо клиентской части на GitHub Pages: чистые HTML/CSS/JS, без сборки.
 on:
   push:
     branches: [main]
@@ -21,11 +20,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Подпроект Pages живёт по адресу /<repo>/, поэтому подставляем base href.
-      - name: Set base path for GitHub Pages
+      - name: Set base path
         run: sed -i 's|<base href="/"[^>]*>|<base href="/${{ github.event.repository.name }}/">|' web/index.html
 
-      # Pages не знает про маршруты клиента: /feed отдаём той же страницей.
       - name: SPA fallback
         run: cp web/index.html web/404.html
 

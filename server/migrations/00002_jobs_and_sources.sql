@@ -1,8 +1,7 @@
--- server/migrations/00002_jobs_and_sources.sql
 -- +goose Up
 CREATE TABLE jobs (
     id          bigserial PRIMARY KEY,
-    kind        text        NOT NULL,                 -- 'collect', 'normalize', 'embed', 'parse_resume'
+    kind        text        NOT NULL,
     payload     jsonb       NOT NULL DEFAULT '{}',
     status      text        NOT NULL DEFAULT 'queued'
                 CHECK (status IN ('queued', 'running', 'done', 'failed')),

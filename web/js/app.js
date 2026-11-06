@@ -1,20 +1,21 @@
-import { renderApplicationsPage } from "./pages/applications.js";
-import { renderLoginPage, renderRegisterPage } from "./pages/auth.js";
-import { renderDevPage } from "./pages/dev.js";
-import { renderFeedPage } from "./pages/feed.js";
-import { renderLetterPage } from "./pages/letter.js";
-import { renderNotFoundPage } from "./pages/notfound.js";
-import { renderOnboardingPage } from "./pages/onboarding.js";
-import { renderVacancyPage } from "./pages/vacancy.js";
-import { getMe } from "./api.js";
-import { getPathname, navigate, subscribe } from "./router.js";
+import { renderApplicationsPage } from "./pages/applications/page.js";
+import { renderLoginPage } from "./pages/auth/login.js";
+import { renderRegisterPage } from "./pages/auth/register.js";
+import { renderDevPage } from "./pages/dev/page.js";
+import { renderFeedPage } from "./pages/feed/page.js";
+import { renderLetterPage } from "./pages/letter/page.js";
+import { renderNotFoundPage } from "./pages/not-found/page.js";
+import { renderOnboardingPage } from "./pages/onboarding/page.js";
+import { renderVacancyPage } from "./pages/vacancy/page.js";
+import { getMe } from "./api/index.js";
+import { getPathname, navigate, subscribe } from "./core/router.js";
 import {
   getStoredUser,
   hasSession,
   onAccessTokenCleared,
   setProfile,
   setStoredUser,
-} from "./session.js";
+} from "./core/session.js";
 
 const PROTECTED_ROOTS = new Set(["feed", "vacancies", "onboarding", "letters", "applications"]);
 
@@ -107,6 +108,16 @@ async function route() {
 }
 
 subscribe(route);
+
+// Never let the browser replace the SPA with a dropped file (e.g. its PDF viewer).
+// Pages that accept files (onboarding) handle the drop themselves.
+for (const type of ["dragover", "drop"]) {
+  window.addEventListener(type, (event) => {
+    if (event.dataTransfer?.types && Array.prototype.indexOf.call(event.dataTransfer.types, "Files") !== -1) {
+      event.preventDefault();
+    }
+  });
+}
 
 onAccessTokenCleared(() => {
   const root = getPathname().split("/").filter(Boolean)[0];

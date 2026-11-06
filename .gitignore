@@ -1,27 +1,24 @@
-# секреты и окружение
 .env
 .env.local
 .env.*.local
 _env
 
-# документация планирования — не коммитим
 *.md
-
-# macOS
+*.pdf
 .DS_Store
 
-# зависимости
 node_modules/
 .pnpm-store/
 
-# ML
-ml/research/download_models.py
-
-# QA (Playwright)
 **/node_modules/
 **/test-results/
 **/playwright-report/
 **/allure-results/
 
-# Профиль браузера для сбора с hh.ru (cookies, данные входа)
 **/.hh_browser_profile/
+
+scraper/data/
+
+server/api/types.gen.go
+
+web/404.html
