@@ -41,7 +41,7 @@ async function route() {
   }
 
   if (path === "/login") {
-    document.title = "Вход — PODBORpro";
+    document.title = "Вход — ПОДБОРпро";
     if (hasSession()) {
       navigate("/feed");
       return;
@@ -51,7 +51,7 @@ async function route() {
   }
 
   if (path === "/register") {
-    document.title = "Регистрация — PODBORpro";
+    document.title = "Регистрация — ПОДБОРпро";
     if (hasSession()) {
       navigate("/feed");
       return;
@@ -61,7 +61,7 @@ async function route() {
   }
 
   if (path === "/dev/components") {
-    document.title = "Компоненты — PODBORpro";
+    document.title = "Компоненты — ПОДБОРпро";
     renderDevPage();
     return;
   }
@@ -73,37 +73,37 @@ async function route() {
     }
 
     if (segments[0] === "feed") {
-      document.title = "Лента — PODBORpro";
+      document.title = "Лента — ПОДБОРпро";
       void renderFeedPage(isCurrent);
       return;
     }
 
     if (segments[0] === "vacancies" && segments[1]) {
-      document.title = "Вакансия — PODBORpro";
+      document.title = "Вакансия — ПОДБОРпро";
       void renderVacancyPage(Number(segments[1]), isCurrent);
       return;
     }
 
     if (segments[0] === "onboarding") {
-      document.title = "Настройка — PODBORpro";
+      document.title = "Настройка — ПОДБОРпро";
       renderOnboardingPage();
       return;
     }
 
     if (segments[0] === "letters" && segments[1]) {
-      document.title = "Письмо — PODBORpro";
+      document.title = "Письмо — ПОДБОРпро";
       void renderLetterPage(Number(segments[1]), isCurrent);
       return;
     }
 
     if (segments[0] === "applications") {
-      document.title = "Отклики — PODBORpro";
+      document.title = "Отклики — ПОДБОРпро";
       void renderApplicationsPage(isCurrent);
       return;
     }
   }
 
-  document.title = "Не найдено — PODBORpro";
+  document.title = "Не найдено — ПОДБОРпро";
   renderNotFoundPage();
 }
 

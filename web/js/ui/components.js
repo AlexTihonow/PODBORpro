@@ -60,9 +60,9 @@ export function initial(value) {
 }
 
 export function logo({ light = false } = {}) {
-  return `<a class="logo${light ? " logo--light" : ""}" href="${withBase("/feed")}" data-link data-to="/feed" aria-label="PODBORpro — на главную">
+  return `<a class="logo${light ? " logo--light" : ""}" href="${withBase("/feed")}" data-link data-to="/feed" aria-label="ПОДБОРпро — на главную">
     <span class="logo__mark">${icon("sparkles", "logo__icon")}</span>
-    <span class="logo__name">PODBOR<span>pro</span></span>
+    <span class="logo__name">ПОДБОР<span>про</span></span>
   </a>`;
 }
 

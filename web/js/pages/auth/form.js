@@ -19,7 +19,7 @@ export function authLayout({ title, subtitle, form, footer }) {
             <li>${icon("check")} Одна доска для всех откликов</li>
           </ul>
         </div>
-        <p class="auth-brand__foot">PODBORpro · демонстрационная версия</p>
+        <p class="auth-brand__foot">ПОДБОРпро · демонстрационная версия</p>
       </aside>
 
       <section class="auth-card">
