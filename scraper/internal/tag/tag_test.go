@@ -48,7 +48,7 @@ func TestTagBatchesAndStoresAnswers(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if s.Tagged != 40 || len(batches) != 2 || batches[0] != 32 {
+	if s.Tagged != 40 || len(batches) != 5 || batches[0] != BatchSize {
 		t.Errorf("итог %+v, пакеты %v", s, batches)
 	}
 	v := st.Vacancies(nil)[0]
@@ -57,7 +57,6 @@ func TestTagBatchesAndStoresAnswers(t *testing.T) {
 		t.Errorf("ответ не сохранён: %+v", v)
 	}
 
-	// Повторный запуск ничего не размечает, пока вакансия не изменилась.
 	s, _ = Run(context.Background(), st, NewClient(srv.URL), quiet)
 	if s.Pending != 0 {
 		t.Errorf("повторная разметка %d вакансий", s.Pending)

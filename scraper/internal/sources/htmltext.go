@@ -12,7 +12,6 @@ import (
 	"github.com/AlexTihonow/PODBORpro/scraper/internal/httpx"
 )
 
-// Getter скачивает страницы сайта; это httpx.Client одного сайта.
 type Getter interface {
 	Get(ctx context.Context, url string) (httpx.Response, error)
 	Allowed(ctx context.Context, url string) bool
@@ -29,7 +28,6 @@ var (
 	emptyLines = regexp.MustCompile(`\n{2,}`)
 )
 
-// Text — текст выбранных узлов без HTML-тегов: абзацы и пункты списков через перевод строки.
 func Text(sel *goquery.Selection) string {
 	var b strings.Builder
 	var walk func(n *html.Node)
@@ -64,7 +62,6 @@ func Text(sel *goquery.Selection) string {
 	return Clean(b.String())
 }
 
-// Clean схлопывает пробелы в строках и пустые строки.
 func Clean(s string) string {
 	lines := strings.Split(spaces.ReplaceAllString(s, " "), "\n")
 	for i, l := range lines {
@@ -73,12 +70,10 @@ func Clean(s string) string {
 	return strings.TrimSpace(emptyLines.ReplaceAllString(strings.Join(lines, "\n"), "\n"))
 }
 
-// Line — текст в одну строку.
 func Line(sel *goquery.Selection) string {
 	return strings.Join(strings.Fields(strings.ReplaceAll(sel.Text(), " ", " ")), " ")
 }
 
-// Resolve превращает ссылку со страницы в полный адрес.
 func Resolve(base, ref string) string {
 	b, err := url.Parse(base)
 	if err != nil {
@@ -91,7 +86,6 @@ func Resolve(base, ref string) string {
 	return r.String()
 }
 
-// Dedup убирает пустые строки и повторы, сохраняя порядок.
 func Dedup(xs []string) []string {
 	seen := map[string]bool{}
 	out := []string{}

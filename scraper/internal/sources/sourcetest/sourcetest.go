@@ -1,4 +1,3 @@
-// Package sourcetest — помощники для тестов разбора на сохранённых страницах.
 package sourcetest
 
 import (
@@ -19,13 +18,10 @@ import (
 	"github.com/AlexTihonow/PODBORpro/scraper/internal/sources"
 )
 
-// Update — go test ./... -update перезаписывает эталонные JSON по текущему разбору.
 var Update = flag.Bool("update", false, "перезаписать эталонные JSON в testdata")
 
-// Fixed — время «сейчас» в тестах.
 var Fixed = time.Date(2026, 10, 20, 12, 0, 0, 0, time.UTC)
 
-// Page читает сохранённую страницу testdata/<name> (.gz распаковывается).
 func Page(t *testing.T, name string) []byte {
 	t.Helper()
 	b, err := os.ReadFile(filepath.Join("testdata", name))
@@ -44,7 +40,6 @@ func Page(t *testing.T, name string) []byte {
 	return b
 }
 
-// Golden сравнивает v с testdata/<name>.
 func Golden(t *testing.T, name string, v any) {
 	t.Helper()
 	got, err := json.MarshalIndent(v, "", "  ")
@@ -68,11 +63,9 @@ func Golden(t *testing.T, name string, v any) {
 	}
 }
 
-// Site — сайт из сохранённых страниц: адрес → файл в testdata. Чего нет — 404.
 type Site struct {
-	T     *testing.T
-	Pages map[string]string
-	// Disallow — адреса, которые запрещены как в robots.txt.
+	T        *testing.T
+	Pages    map[string]string
 	Disallow func(url string) bool
 	Got      []string
 }
@@ -95,7 +88,6 @@ func (s *Site) Allowed(_ context.Context, url string) bool {
 
 var _ sources.Getter = (*Site)(nil)
 
-// Must — короткая проверка ошибки.
 func Must(t *testing.T, err error) {
 	t.Helper()
 	if err != nil {

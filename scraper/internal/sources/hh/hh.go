@@ -1,12 +1,3 @@
-// Package hh — источник HeadHunter: ссылки из выдачи и разбор HTML-страницы вакансии.
-//
-// API не используется. robots.txt hh.ru запрещает ботам адреса с параметрами (Disallow: *?*),
-// поэтому обычная выдача /search/vacancy?text=... недоступна, как и листание ?page=1.
-// Доступны тематические страницы без параметров (https://hh.ru/vacancies/go-razrabotchik,
-// 50 вакансий на странице) и карты сайта (https://hh.ru/sitemap/vacancies0.xml) со списком таких страниц.
-//
-// Видимые поля берутся по data-qa. Зарплата, дата публикации и признак архива — из состояния
-// страницы (<template id="HH-Lux-InitialState">): там они уже разложены по полям.
 package hh
 
 import (
@@ -40,8 +31,6 @@ func (*HH) Code() string { return Code }
 
 var vacancyIDRe = regexp.MustCompile(`/vacancy/(\d+)`)
 
-// Canonical приводит ссылку на вакансию к виду https://hh.ru/vacancy/<номер>:
-// без параметров отслеживания, поддомена города и «/» в конце.
 func Canonical(href string) (id, url string, ok bool) {
 	m := vacancyIDRe.FindStringSubmatch(href)
 	if m == nil {
@@ -57,7 +46,6 @@ func (h *HH) ListLinks(ctx context.Context, q sources.Query, known map[string]bo
 	return h.fromPages(ctx, q.URL, q.MaxPages, known)
 }
 
-// fromPages листает выдачу, пока есть следующая страница, разрешённая robots.txt.
 func (h *HH) fromPages(ctx context.Context, url string, maxPages int, known map[string]bool) ([]sources.Link, error) {
 	var out []sources.Link
 	seen := map[string]bool{}
@@ -131,8 +119,6 @@ type sitemapDoc struct {
 	} `xml:"url"`
 }
 
-// fromSitemap берёт из карты сайта ссылки на вакансии и тематические страницы, в адресе
-// которых есть слово из q.Match, и с каждой тематической страницы — её вакансии.
 func (h *HH) fromSitemap(ctx context.Context, q sources.Query, known map[string]bool, depth int) ([]sources.Link, error) {
 	resp, err := h.get.Get(ctx, q.URL)
 	if err != nil {
@@ -148,9 +134,9 @@ func (h *HH) fromSitemap(ctx context.Context, q sources.Query, known map[string]
 	var out []sources.Link
 	if depth == 0 {
 		for _, s := range sm.Sitemaps {
-			want := "vacanc" // без Match — карты со ссылками на сами вакансии
+			want := "vacanc"
 			if len(q.Match) > 0 {
-				want = "/vacancies" // с Match — только карты тематических страниц
+				want = "/vacancies"
 			}
 			if !strings.Contains(s.Loc, want) {
 				continue
@@ -191,7 +177,6 @@ func matches(s string, words []string) bool {
 	return false
 }
 
-// state — нужная часть <template id="HH-Lux-InitialState">.
 type state struct {
 	ErrorCode   any `json:"errorCode"`
 	VacancyView struct {
@@ -258,7 +243,8 @@ func (h *HH) Parse(body []byte, link sources.Link) (sources.Vacancy, error) {
 		Experience: first(
 			strip(sources.Line(doc.Find(`[data-qa="work-experience-text"]`).First()), "Опыт работы:"),
 			sources.Line(doc.Find(`[data-qa="vacancy-experience"]`).First())),
-		Employment: strings.ToLower(sources.Line(doc.Find(`[data-qa="common-employment-text"]`).First())),
+		Employment: strip(strings.ToLower(sources.Line(doc.Find(`[data-qa="common-employment-text"]`).First())),
+			"тип занятости"),
 		WorkFormatRaw: strip(sources.Line(doc.Find(`[data-qa="work-formats-text"]`).First()),
 			"Формат работы:"),
 		Description: sources.Text(doc.Find(`[data-qa="vacancy-description"]`).First()),
@@ -304,7 +290,6 @@ func (h *HH) Parse(body []byte, link sources.Link) (sources.Vacancy, error) {
 	return v, nil
 }
 
-// IsGone: 404 и 410 — вакансии нет; 200 со страницей архивной или скрытой вакансии — тоже.
 func (h *HH) IsGone(status int, body []byte) bool {
 	if status == http.StatusNotFound || status == http.StatusGone {
 		return true
@@ -314,7 +299,7 @@ func (h *HH) IsGone(status int, body []byte) bool {
 	}
 	st, err := parseState(body)
 	if err != nil {
-		return false // неизвестная страница — не повод удалять вакансию
+		return false
 	}
 	if code, ok := st.ErrorCode.(float64); ok && (code == 404 || code == 410) {
 		return true

@@ -1,6 +1,3 @@
-// Package tag — этап 3: размечает вакансии в сервисе ml (Laya, POST /classify) пакетами по 32.
-//
-// Пороги уверенности и решение «на проверку» принимает сервис ml; сборщик ответ не меняет, только сохраняет.
 package tag
 
 import (
@@ -20,15 +17,17 @@ import (
 )
 
 const (
-	BatchSize = 32
-	// MaxText — лимит модели 512 токенов; хвост описания всё равно отрежется, поэтому режем сами.
-	MaxText = 1800
+	BatchSize = 8
+	MaxText   = 2400
 )
 
 type Item struct {
-	ID    string `json:"id"`
-	Title string `json:"title"`
-	Text  string `json:"text"`
+	ID            string   `json:"id"`
+	Title         string   `json:"title"`
+	Text          string   `json:"text"`
+	Experience    string   `json:"experience,omitempty"`
+	WorkFormatRaw string   `json:"work_format_raw,omitempty"`
+	Skills        []string `json:"skills,omitempty"`
 }
 
 type request struct {
@@ -44,14 +43,13 @@ type response struct {
 	} `json:"items"`
 }
 
-// Client — клиент сервиса ml.
 type Client struct {
 	URL  string
 	HTTP *http.Client
 }
 
 func NewClient(url string) *Client {
-	return &Client{URL: strings.TrimRight(url, "/"), HTTP: &http.Client{Timeout: 2 * time.Minute}}
+	return &Client{URL: strings.TrimRight(url, "/"), HTTP: &http.Client{Timeout: 15 * time.Minute}}
 }
 
 func (c *Client) classify(ctx context.Context, items []Item) (*response, error) {
@@ -92,8 +90,6 @@ type Stats struct {
 	Missing int
 }
 
-// Run размечает все вакансии без тегов или изменившиеся после разметки. Если ml недоступен,
-// этап завершается с ошибкой; уже размеченное сохранено, остальное разметится в следующий запуск.
 func Run(ctx context.Context, st *data.Store, c *Client, log *slog.Logger) (Stats, error) {
 	pending := st.Vacancies(sources.Vacancy.NeedsTagging)
 	s := Stats{Pending: len(pending)}
@@ -105,7 +101,14 @@ func Run(ctx context.Context, st *data.Store, c *Client, log *slog.Logger) (Stat
 		items := make([]Item, len(batch))
 		byID := make(map[string]sources.Vacancy, len(batch))
 		for i, v := range batch {
-			items[i] = Item{ID: v.Key(), Title: v.Title, Text: Text(v)}
+			items[i] = Item{
+				ID:            v.Key(),
+				Title:         v.Title,
+				Text:          Text(v),
+				Experience:    v.Experience,
+				WorkFormatRaw: v.WorkFormatRaw,
+				Skills:        v.SkillsRaw,
+			}
 			byID[v.Key()] = v
 		}
 		r, err := c.classify(ctx, items)
@@ -139,7 +142,6 @@ func Run(ctx context.Context, st *data.Store, c *Client, log *slog.Logger) (Stat
 	return s, nil
 }
 
-// decode раскладывает ответы: "tags" — теги дерева, остальное — метки (грейд, формат работы...).
 func decode(answers map[string]json.RawMessage) ([]sources.Tag, map[string]sources.Label) {
 	var tags []sources.Tag
 	labels := map[string]sources.Label{}
@@ -161,7 +163,6 @@ var (
 	stopWords = []string{"условия", "предлагаем", "обязанност", "задачи", "чем предстоит", "будет плюсом", "плюсом", "о компании", "что мы даём", "что мы даем", "бонус"}
 )
 
-// Text собирает текст для Laya в порядке важности: заголовок → опыт → требования и навыки → начало описания.
 func Text(v sources.Vacancy) string {
 	var parts []string
 	if v.Experience != "" {
@@ -181,7 +182,6 @@ func Text(v sources.Vacancy) string {
 	return truncate(strings.Join(parts, " "), MaxText)
 }
 
-// Requirements — блок требований из описания: от заголовка «Требования:» до следующего раздела.
 func Requirements(desc string) string {
 	var out []string
 	collecting := false

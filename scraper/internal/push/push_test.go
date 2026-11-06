@@ -18,11 +18,9 @@ import (
 
 var quiet = slog.New(slog.NewTextHandler(io.Discard, nil))
 
-// fakeServer ведёт себя как адрес импорта: не дублирует по (source, external_id),
-// пустой заголовок отклоняет.
 type fakeServer struct {
 	mu       sync.Mutex
-	stored   map[string]string // ключ → content_hash
+	stored   map[string]string
 	batches  []int
 	runs     int
 	failNext int
@@ -105,7 +103,6 @@ func TestPushBatchesAndNoDuplicates(t *testing.T) {
 		t.Errorf("пакеты %v, ждали по 100", fs.batches)
 	}
 
-	// Повторная отправка: все принятые уже отмечены, остаётся только отклонённая.
 	s, err = Push(context.Background(), st, c, nil, quiet)
 	if err != nil {
 		t.Fatal(err)
@@ -114,7 +111,6 @@ func TestPushBatchesAndNoDuplicates(t *testing.T) {
 		t.Errorf("повторная отправка: %+v, ждали created: 0", s)
 	}
 
-	// Изменилась вакансия или появились теги — отправляем снова.
 	model := "laya@test"
 	st.UpdateVacancies([]string{"fake:0"}, func(v *sources.Vacancy) { v.TaggedWith = &model })
 	if p := st.Vacancies(sources.Vacancy.NeedsPush); len(p) != 2 {

@@ -1,11 +1,3 @@
-// Package push — этап 4: отправляет на сервер новые и изменённые вакансии пакетами по 100.
-//
-//	POST /api/v1/internal/vacancies/import
-//	Authorization: Bearer <IMPORT_TOKEN>
-//	{ "items": [ ...записи vacancies.json целиком... ], "run": { ...итог сбора по сайтам... } }
-//
-// Ответ: { "created": 12, "updated": 3, "skipped": 85, "rejected": [ { "external_id": "...", "error": "..." } ] }.
-// Пакет всегда из одного источника, поэтому external_id в rejected однозначен.
 package push
 
 import (
@@ -28,15 +20,13 @@ const BatchSize = 100
 
 const importPath = "/api/v1/internal/vacancies/import"
 
-// Run — итог сбора, его сервер пишет в collection_runs: какой сайт не собрался и почему.
 type Run struct {
 	StartedAt time.Time   `json:"started_at"`
 	Sources   []SourceRun `json:"sources"`
 }
 
 type SourceRun struct {
-	Source string `json:"source"`
-	// Status — success, partial (сайт остановил сбор на середине) или failed.
+	Source  string `json:"source"`
 	Status  string `json:"status"`
 	Fetched int    `json:"fetched"`
 	Errors  int    `json:"errors"`
@@ -62,7 +52,6 @@ type Client struct {
 	URL   string
 	Token string
 	HTTP  *http.Client
-	// Sleep — пауза между повторами, для тестов.
 	Sleep func(time.Duration)
 }
 
@@ -71,7 +60,6 @@ func NewClient(url, token string) *Client {
 		HTTP: &http.Client{Timeout: time.Minute}, Sleep: time.Sleep}
 }
 
-// send отправляет пакет; при обрыве сети и 5xx повторяет до трёх раз.
 func (c *Client) send(ctx context.Context, r request) (*Response, error) {
 	body, err := json.Marshal(r)
 	if err != nil {
@@ -107,7 +95,7 @@ func (c *Client) send(ctx context.Context, r request) (*Response, error) {
 			continue
 		}
 		if resp.StatusCode != http.StatusOK {
-			return nil, fmt.Errorf("сервер: ответ %d", resp.StatusCode) // 401, 413... повтор не поможет
+			return nil, fmt.Errorf("сервер: ответ %d", resp.StatusCode)
 		}
 		var out Response
 		if err := json.Unmarshal(b, &out); err != nil {
@@ -126,8 +114,6 @@ type Stats struct {
 	Rejected int
 }
 
-// Push отправляет вакансии, у которых pushed_hash не совпадает с content_hash или теги изменились.
-// После успешного ответа у принятых ставит pushed_hash = content_hash.
 func Push(ctx context.Context, st *data.Store, c *Client, run *Run, log *slog.Logger) (Stats, error) {
 	if c.URL == "" || c.Token == "" {
 		return Stats{}, errors.New("не заданы PODBOR_URL и IMPORT_TOKEN")
@@ -187,7 +173,7 @@ func Push(ctx context.Context, st *data.Store, c *Client, run *Run, log *slog.Lo
 			}
 		}
 	}
-	if !sentRun && run != nil { // отправлять нечего, но итог сбора серверу нужен
+	if !sentRun && run != nil {
 		if _, err := c.send(ctx, request{Items: []sources.Vacancy{}, Run: run}); err != nil {
 			return s, err
 		}

@@ -1,6 +1,3 @@
-// Package httpx — общий HTTP-клиент сборщика: паузы, повторы, robots.txt, свой User-Agent.
-//
-// Один Client — один сайт: запросы к нему идут строго по одному, со случайной паузой между ними.
 package httpx
 
 import (
@@ -20,45 +17,32 @@ import (
 )
 
 var (
-	// ErrBlocked — 403 или проверка «не робот». Сбор этого сайта в текущем запуске останавливается.
-	ErrBlocked = errors.New("сайт заблокировал запрос (403 или проверка «не робот»)")
-	// ErrRateLimited — 429 или 503: подождали Retry-After, сбор сайта останавливается.
+	ErrBlocked     = errors.New("сайт заблокировал запрос (403 или проверка «не робот»)")
 	ErrRateLimited = errors.New("сайт просит снизить частоту запросов (429/503)")
-	// ErrDisallowed — адрес запрещён в robots.txt, туда не ходим.
-	ErrDisallowed = errors.New("адрес запрещён в robots.txt")
+	ErrDisallowed  = errors.New("адрес запрещён в robots.txt")
 )
 
-// Response — ответ сайта. URL — адрес после всех перенаправлений.
 type Response struct {
 	Status int
 	Body   []byte
 	URL    string
 }
 
-// Renderer открывает страницу в браузере (render: browser в sources.yaml).
 type Renderer interface {
 	Render(ctx context.Context, url string) (Response, error)
 }
 
-// Options — настройки клиента для одного сайта.
 type Options struct {
-	UserAgent string
-	// Agent — имя бота для robots.txt; по умолчанию первое слово User-Agent до «/».
-	Agent    string
-	PauseMin time.Duration
-	PauseMax time.Duration
-	// Timeout — сколько ждать один ответ.
-	Timeout time.Duration
-	// RetryAfter — сколько ждать при 429/503 без заголовка Retry-After.
+	UserAgent  string
+	Agent      string
+	PauseMin   time.Duration
+	PauseMax   time.Duration
+	Timeout    time.Duration
 	RetryAfter time.Duration
-	// Retries — сколько раз повторять запрос при обрыве сети и 5xx.
-	Retries int
-	// Render — если задан, страницы (кроме robots.txt) открываются через него.
-	Render Renderer
-	// HTTP — свой транспорт, для тестов.
-	HTTP *http.Client
-	// Sleep — своя пауза, для тестов.
-	Sleep func(ctx context.Context, d time.Duration) error
+	Retries    int
+	Render     Renderer
+	HTTP       *http.Client
+	Sleep      func(ctx context.Context, d time.Duration) error
 }
 
 const maxBody = 15 << 20
@@ -120,7 +104,6 @@ func sleep(ctx context.Context, d time.Duration) error {
 	}
 }
 
-// Allowed проверяет адрес по robots.txt его сайта.
 func (c *Client) Allowed(ctx context.Context, rawURL string) bool {
 	u, err := url.Parse(rawURL)
 	if err != nil {
@@ -131,7 +114,6 @@ func (c *Client) Allowed(ctx context.Context, rawURL string) bool {
 	return c.allowed(ctx, u)
 }
 
-// allowed вызывается под c.mu.
 func (c *Client) allowed(ctx context.Context, u *url.URL) bool {
 	host := u.Scheme + "://" + u.Host
 	r, ok := c.robots[host]
@@ -170,7 +152,6 @@ func (c *Client) fetchRobots(ctx context.Context, host string) *Robots {
 	return AllowAll
 }
 
-// pause выдерживает случайную паузу с прошлого запроса. Вызывается под c.mu.
 func (c *Client) pause(ctx context.Context) error {
 	if c.last.IsZero() || c.opt.PauseMax <= 0 {
 		return ctx.Err()
@@ -185,8 +166,6 @@ func (c *Client) pause(ctx context.Context) error {
 	return ctx.Err()
 }
 
-// Get скачивает страницу. 404 и прочие коды возвращаются в Response без ошибки;
-// 403 и проверка «не робот» — ErrBlocked, 429/503 — ErrRateLimited, запрет robots.txt — ErrDisallowed.
 func (c *Client) Get(ctx context.Context, rawURL string) (Response, error) {
 	u, err := url.Parse(rawURL)
 	if err != nil {
@@ -283,7 +262,6 @@ func parseRetryAfter(v string) time.Duration {
 
 var titleRe = regexp.MustCompile(`(?is)<title[^>]*>(.*?)</title>`)
 
-// IsCaptcha узнаёт страницу проверки «не робот» по заголовку.
 func IsCaptcha(body []byte) bool {
 	m := titleRe.FindSubmatch(body)
 	if m == nil {

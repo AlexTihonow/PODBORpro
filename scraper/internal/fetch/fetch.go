@@ -1,13 +1,3 @@
-// Package fetch — этап 2: скачивает страницы вакансий и разбирает их в data/vacancies.json.
-//
-// Порядок для каждой вакансии:
-//  1. скачать страницу в data/html/<source>-<external_id>.html;
-//  2. разобрать её;
-//  3. записать вакансию в vacancies.json (атомарно);
-//  4. только после этого удалить HTML-файл и поставить fetched_at в links.json.
-//
-// Если программа упала между шагами 1 и 4, файл остаётся, и следующий запуск разберёт его
-// с диска, не скачивая заново. Неразобранная страница переносится в data/html/failed/.
 package fetch
 
 import (
@@ -26,23 +16,16 @@ import (
 	"github.com/AlexTihonow/PODBORpro/scraper/internal/sources"
 )
 
-// FailedMaxAge — сколько хранятся неразобранные страницы в data/html/failed/.
 const FailedMaxAge = 7 * 24 * time.Hour
 
 type Options struct {
-	// Limit — общий на все сайты счётчик скачанных страниц; nil — без ограничения.
-	Limit *Limit
-	// RetryFailed — заново разобрать страницы из data/html/failed/.
+	Limit       *Limit
 	RetryFailed bool
-	// Refetch — скачать заново вакансии, скачанные после этого времени.
-	Refetch *time.Time
-	// Every и OnEvery — при первом сборе после каждых Every разобранных вакансий вызывается OnEvery
-	// (разметка и отправка), чтобы лента наполнялась по ходу.
-	Every   int
-	OnEvery func(ctx context.Context) error
+	Refetch     *time.Time
+	Every       int
+	OnEvery     func(ctx context.Context) error
 }
 
-// Limit — «не больше N страниц» на весь запуск.
 type Limit struct{ left atomic.Int64 }
 
 func NewLimit(n int) *Limit {
@@ -67,8 +50,6 @@ type Stats struct {
 	Errors     int
 }
 
-// Run скачивает и разбирает вакансии одного источника. Ошибка — только та, что останавливает
-// сбор сайта (проверка «не робот», 403, 429) или запись на диск; уже скачанное сохраняется.
 func Run(ctx context.Context, st *data.Store, src sources.Source, get sources.Getter, opt Options, log *slog.Logger) (Stats, error) {
 	f := &fetcher{st: st, src: src, get: get, opt: opt}
 	err := f.run(ctx)
@@ -118,7 +99,7 @@ func (f *fetcher) one(ctx context.Context, l sources.Link) error {
 	body, err := os.ReadFile(path)
 	switch {
 	case err == nil:
-		f.stats.FromDisk++ // осталось с прошлого запуска, который упал до удаления
+		f.stats.FromDisk++
 	case errors.Is(err, fs.ErrNotExist):
 		if !f.opt.Limit.take() {
 			return nil
@@ -139,7 +120,6 @@ func (f *fetcher) one(ctx context.Context, l sources.Link) error {
 	return f.parse(ctx, l, path, body)
 }
 
-// download скачивает страницу. done — со ссылкой всё решено (снята, ошибка записана), разбирать нечего.
 func (f *fetcher) download(ctx context.Context, l sources.Link) (body []byte, done bool, err error) {
 	resp, err := f.get.Get(ctx, l.URL)
 	switch {
@@ -154,12 +134,12 @@ func (f *fetcher) download(ctx context.Context, l sources.Link) (body []byte, do
 	default:
 		f.stats.Errors++
 		f.st.AddError("fetch", l.Source, l.URL, err)
-		return nil, true, nil // сеть: попробуем в следующий запуск
+		return nil, true, nil
 	}
 	f.stats.Downloaded++
 	if f.src.IsGone(resp.Status, resp.Body) {
 		f.stats.Gone++
-		return nil, true, f.st.RemoveLink(l.Key()) // сняли, не успев скачать
+		return nil, true, f.st.RemoveLink(l.Key())
 	}
 	if resp.Status != http.StatusOK {
 		f.stats.Errors++
@@ -206,7 +186,6 @@ func (f *fetcher) parse(ctx context.Context, l sources.Link, path string, body [
 	return nil
 }
 
-// retryFailed разбирает заново страницы из data/html/failed/ и удаляет удачные.
 func (f *fetcher) retryFailed(ctx context.Context) error {
 	links, err := f.st.FailedLinks(f.src.Code())
 	if err != nil {

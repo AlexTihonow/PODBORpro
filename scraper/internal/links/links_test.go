@@ -60,7 +60,6 @@ func TestLinksAppendAndPrune(t *testing.T) {
 		t.Error("второму запросу не передали ссылки, найденные первым")
 	}
 
-	// Первый сбор: известные ссылки обход не останавливают.
 	src.known = nil
 	if _, err := Run(context.Background(), st, src, qs, true, quiet); err != nil {
 		t.Fatal(err)

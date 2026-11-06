@@ -1,4 +1,3 @@
-// Package jsonfile читает и атомарно пишет JSON-файлы этапов.
 package jsonfile
 
 import (
@@ -10,7 +9,6 @@ import (
 	"path/filepath"
 )
 
-// Read читает JSON из path в v. Если файла нет, v остаётся как есть и ошибки нет.
 func Read(path string, v any) error {
 	b, err := os.ReadFile(path)
 	if errors.Is(err, fs.ErrNotExist) {
@@ -25,8 +23,6 @@ func Read(path string, v any) error {
 	return nil
 }
 
-// Write пишет v во временный файл рядом с path и переименовывает его в path.
-// Если программа упадёт посередине, в path останется прежняя целая версия.
 func Write(path string, v any) error {
 	b, err := json.MarshalIndent(v, "", "  ")
 	if err != nil {
@@ -39,7 +35,7 @@ func Write(path string, v any) error {
 	if err != nil {
 		return err
 	}
-	defer os.Remove(tmp.Name()) // после успешного переименования файла уже нет
+	defer os.Remove(tmp.Name())
 	if _, err := tmp.Write(append(b, '\n')); err != nil {
 		tmp.Close()
 		return err

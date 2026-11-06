@@ -1,33 +1,24 @@
-# секреты и окружение
 .env
 .env.local
 .env.*.local
 _env
 
-# документация планирования - не коммитим
 *.md
 *.pdf
-# macOS
 .DS_Store
 
-# зависимости
 node_modules/
 .pnpm-store/
 
-# ML
-ml/research/download_models.py
-
-# QA (Playwright)
 **/node_modules/
 **/test-results/
 **/playwright-report/
 **/allure-results/
 
-# Профиль браузера для сбора с hh.ru (cookies, данные входа)
 **/.hh_browser_profile/
 
-# Сборщик: результаты этапов и профиль браузера (scraper/data/browser_profile/)
 scraper/data/
 
-# Типы Go из server/api/openapi.yaml: создаются make generate (и при сборке образа)
 server/api/types.gen.go
+
+web/404.html

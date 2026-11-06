@@ -1,7 +1,3 @@
-// Package data — файлы этапов в папке data/: links.json, vacancies.json, errors.json, sites.json.
-//
-// Все изменения идут через Store под одной блокировкой и сразу пишутся на диск атомарно,
-// поэтому сборщик можно прервать в любой момент и продолжить той же командой.
 package data
 
 import (
@@ -26,7 +22,6 @@ type vacanciesFile struct {
 	Vacancies []sources.Vacancy `json:"vacancies"`
 }
 
-// Error — запись data/errors.json.
 type Error struct {
 	At     time.Time `json:"at"`
 	Stage  string    `json:"stage"`
@@ -41,14 +36,12 @@ type errorsFile struct {
 
 const maxErrors = 2000
 
-// Site — состояние сайта между запусками: сколько запусков подряд он нас блокировал.
 type Site struct {
 	Blocks         int        `json:"blocks"`
 	SuspendedUntil *time.Time `json:"suspended_until,omitempty"`
 	LastError      string     `json:"last_error,omitempty"`
 }
 
-// BlocksToSuspend — после стольких блокировок подряд сайт пропускаем на сутки.
 const BlocksToSuspend = 3
 
 type Store struct {
@@ -94,7 +87,6 @@ func (s *Store) reindex() {
 func (s *Store) HTMLDir() string   { return filepath.Join(s.Dir, "html") }
 func (s *Store) FailedDir() string { return filepath.Join(s.Dir, "html", "failed") }
 
-// HTMLPath — data/html/<source>-<external_id>.html.
 func (s *Store) HTMLPath(l sources.Link) string {
 	return filepath.Join(s.HTMLDir(), l.Source+"-"+l.ExternalID+".html")
 }
@@ -113,9 +105,6 @@ func (s *Store) saveVacancies() error {
 	return jsonfile.Write(filepath.Join(s.Dir, "vacancies.json"), &s.vacancies)
 }
 
-// --- ссылки ---
-
-// KnownLinks — все ссылки источника, которые уже есть в links.json.
 func (s *Store) KnownLinks(source string) map[string]bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -128,7 +117,6 @@ func (s *Store) KnownLinks(source string) map[string]bool {
 	return known
 }
 
-// AddLinks дописывает новые ссылки, старые не трогает. Возвращает, сколько добавлено.
 func (s *Store) AddLinks(links []sources.Link) (int, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -151,7 +139,6 @@ func (s *Store) AddLinks(links []sources.Link) (int, error) {
 	return added, s.saveLinks()
 }
 
-// PruneLinks удаляет ссылки старше maxAge, которые так и не скачали: вакансию, скорее всего, сняли.
 func (s *Store) PruneLinks(maxAge time.Duration) (int, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -168,7 +155,6 @@ func (s *Store) PruneLinks(maxAge time.Duration) (int, error) {
 	return n, s.saveLinks()
 }
 
-// Pending — ссылки источника без fetched_at и без неразобранной страницы.
 func (s *Store) Pending(source string) []sources.Link {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -181,7 +167,6 @@ func (s *Store) Pending(source string) []sources.Link {
 	return out
 }
 
-// Link — ссылка по ключу source:external_id.
 func (s *Store) Link(key string) (sources.Link, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -192,7 +177,6 @@ func (s *Store) Link(key string) (sources.Link, bool) {
 	return s.links.Links[i], true
 }
 
-// Refetch снимает fetched_at со ссылок источника, скачанных после since: их скачаем заново.
 func (s *Store) Refetch(source string, since time.Time) (int, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -230,7 +214,6 @@ func (s *Store) MarkFailed(key string) error {
 	return s.updateLink(key, func(l *sources.Link) { l.FailedAt = &now })
 }
 
-// RemoveLink удаляет ссылку: вакансию сняли, не успев скачать.
 func (s *Store) RemoveLink(key string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -242,9 +225,6 @@ func (s *Store) RemoveLink(key string) error {
 	return s.saveLinks()
 }
 
-// --- вакансии ---
-
-// Upsert — что стало с вакансией при записи.
 type Upsert int
 
 const (
@@ -253,8 +233,6 @@ const (
 	Unchanged
 )
 
-// PutVacancy записывает разобранную вакансию. Теги и отметки об отправке сохраняются:
-// по content_hash этапы 3 и 4 сами поймут, что вакансию нужно разметить и отправить заново.
 func (s *Store) PutVacancy(v sources.Vacancy) (Upsert, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -276,7 +254,6 @@ func (s *Store) PutVacancy(v sources.Vacancy) (Upsert, error) {
 	return res, s.saveVacancies()
 }
 
-// Vacancies — копия вакансий, для которых keep вернул true.
 func (s *Store) Vacancies(keep func(sources.Vacancy) bool) []sources.Vacancy {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -289,7 +266,6 @@ func (s *Store) Vacancies(keep func(sources.Vacancy) bool) []sources.Vacancy {
 	return out
 }
 
-// UpdateVacancies меняет вакансии по ключам одной записью на диск.
 func (s *Store) UpdateVacancies(keys []string, f func(*sources.Vacancy)) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -301,9 +277,6 @@ func (s *Store) UpdateVacancies(keys []string, f func(*sources.Vacancy)) error {
 	return s.saveVacancies()
 }
 
-// --- ошибки ---
-
-// AddError дописывает ошибку в errors.json; хранятся последние maxErrors.
 func (s *Store) AddError(stage, source, url string, err error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -314,9 +287,6 @@ func (s *Store) AddError(stage, source, url string, err error) {
 	_ = jsonfile.Write(filepath.Join(s.Dir, "errors.json"), &s.errs)
 }
 
-// --- сайты ---
-
-// Suspended — сайт блокировал нас BlocksToSuspend запусков подряд, и сутки ещё не прошли.
 func (s *Store) Suspended(source string) (time.Time, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -327,7 +297,6 @@ func (s *Store) Suspended(source string) (time.Time, bool) {
 	return *st.SuspendedUntil, true
 }
 
-// SiteResult запоминает итог запуска для сайта: blocked — была проверка «не робот» или 403.
 func (s *Store) SiteResult(source string, blocked bool, reason string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -350,7 +319,6 @@ func (s *Store) SiteResult(source string, blocked bool, reason string) error {
 	return jsonfile.Write(filepath.Join(s.Dir, "sites.json"), s.sites)
 }
 
-// CleanFailed удаляет из data/html/failed/ страницы старше maxAge.
 func (s *Store) CleanFailed(maxAge time.Duration) (int, error) {
 	entries, err := os.ReadDir(s.FailedDir())
 	if err != nil {
@@ -370,7 +338,6 @@ func (s *Store) CleanFailed(maxAge time.Duration) (int, error) {
 	return n, nil
 }
 
-// FailedLinks — ссылки источника, чьи страницы лежат в data/html/failed/.
 func (s *Store) FailedLinks(source string) ([]sources.Link, error) {
 	entries, err := os.ReadDir(s.FailedDir())
 	if err != nil {

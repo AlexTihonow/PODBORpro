@@ -1,12 +1,3 @@
-// Сборщик вакансий: links → fetch → tag → push. Каждый этап читает JSON-файл предыдущего
-// и пишет свой, поэтому любой этап можно перезапустить отдельно.
-//
-//	go run ./cmd/scraper all                       # все четыре этапа подряд
-//	go run ./cmd/scraper links                     # только этап 1
-//	go run ./cmd/scraper fetch -limit 200          # только этап 2, не больше 200 страниц
-//	go run ./cmd/scraper fetch -retry-failed       # заново разобрать data/html/failed/
-//	go run ./cmd/scraper fetch -refetch -since 7d  # скачать заново вакансии за 7 дней
-//	go run ./cmd/scraper all -profile bootstrap -browser   # первый сбор на своей машине
 package main
 
 import (
@@ -26,6 +17,7 @@ import (
 
 	"github.com/AlexTihonow/PODBORpro/scraper/internal/config"
 	"github.com/AlexTihonow/PODBORpro/scraper/internal/data"
+	"github.com/AlexTihonow/PODBORpro/scraper/internal/export"
 	"github.com/AlexTihonow/PODBORpro/scraper/internal/fetch"
 	"github.com/AlexTihonow/PODBORpro/scraper/internal/httpx"
 	"github.com/AlexTihonow/PODBORpro/scraper/internal/links"
@@ -36,14 +28,12 @@ import (
 	"github.com/AlexTihonow/PODBORpro/scraper/internal/tag"
 )
 
-// registry — все источники. Новый сайт: файл в internal/sources/<код>/, строка здесь,
-// запись в sources.yaml и строка в таблице sources (миграцией).
 var registry = map[string]func(sources.Getter) sources.Source{
 	hh.Code:   func(g sources.Getter) sources.Source { return hh.New(g) },
 	habr.Code: func(g sources.Getter) sources.Source { return habr.New(g) },
 }
 
-const usage = `использование: scraper <links|fetch|tag|push|all> [флаги]
+const usage = `использование: scraper <links|fetch|tag|push|export|all> [флаги]
 
 флаги:
 `
@@ -57,6 +47,7 @@ type flags struct {
 	retryFailed bool
 	refetch     bool
 	since       string
+	exportPath  string
 }
 
 func main() {
@@ -94,10 +85,10 @@ func newFlagSet(f *flags) *flag.FlagSet {
 	fs.BoolVar(&f.retryFailed, "retry-failed", false, "fetch: заново разобрать страницы из data/html/failed/")
 	fs.BoolVar(&f.refetch, "refetch", false, "fetch: скачать заново вакансии, скачанные за -since")
 	fs.StringVar(&f.since, "since", "7d", "fetch -refetch: за какой срок (7d, 36h)")
+	fs.StringVar(&f.exportPath, "out", "../web/data/vacancies.json", "export: куда записать каталог для демо")
 	return fs
 }
 
-// site — источник в текущем запуске.
 type site struct {
 	code string
 	cfg  config.Source
@@ -105,7 +96,7 @@ type site struct {
 	get  *httpx.Client
 
 	attempted bool
-	stopErr   error // сбор сайта остановлен в этом запуске
+	stopErr   error
 	fetched   int
 	errors    int
 }
@@ -133,14 +124,14 @@ type app struct {
 	bootstrap bool
 	browser   *httpx.Browser
 	tagPushMu sync.Mutex
-	siteMu    sync.Mutex // поля site при параллельном сборе
+	siteMu    sync.Mutex
 }
 
 func run(ctx context.Context, cmd string, f flags, log *slog.Logger) error {
 	switch cmd {
-	case "links", "fetch", "tag", "push", "all":
+	case "links", "fetch", "tag", "push", "export", "all":
 	default:
-		return fmt.Errorf("неизвестная команда %q, нужна links, fetch, tag, push или all", cmd)
+		return fmt.Errorf("неизвестная команда %q, нужна links, fetch, tag, push, export или all", cmd)
 	}
 	if f.profile != "normal" && f.profile != "bootstrap" {
 		return fmt.Errorf("-profile: normal или bootstrap, а не %q", f.profile)
@@ -174,9 +165,10 @@ func run(ctx context.Context, cmd string, f flags, log *slog.Logger) error {
 	case "push":
 		_, err := push.Push(ctx, st, push.NewClient(cfg.PodborURL, cfg.ImportToken), nil, log)
 		return err
+	case "export":
+		return export.Run(st, f.exportPath, log)
 	}
 
-	// all
 	a.stageLinks(ctx)
 	a.stageFetch(ctx)
 	if ctx.Err() != nil {
@@ -184,7 +176,8 @@ func run(ctx context.Context, cmd string, f flags, log *slog.Logger) error {
 	}
 	pushErr := a.tagAndPush(ctx)
 	collectErr := a.collected(ctx)
-	return errors.Join(collectErr, pushErr)
+	exportErr := export.Run(st, f.exportPath, log)
+	return errors.Join(collectErr, pushErr, exportErr)
 }
 
 func (a *app) openSites() error {
@@ -232,8 +225,6 @@ func (a *app) closeBrowser() {
 	}
 }
 
-// eachSite выполняет этап для каждого сайта, который ещё не остановлен в этом запуске.
-// Обычный запуск — сайты по очереди; первый сбор — параллельно, по одному потоку на сайт.
 func (a *app) eachSite(ctx context.Context, fn func(*site) error) {
 	var wg sync.WaitGroup
 	for _, s := range a.sites {
@@ -298,7 +289,7 @@ func (a *app) stageFetch(ctx context.Context) {
 		opt.Refetch = &t
 	}
 	if a.bootstrap {
-		opt.Every = 500 // при первом сборе лента наполняется по ходу
+		opt.Every = 500
 		opt.OnEvery = func(ctx context.Context) error {
 			if err := a.tagAndPush(ctx); err != nil {
 				a.log.Warn("промежуточная отправка не удалась, повторим в конце", "err", err)
@@ -316,13 +307,15 @@ func (a *app) stageFetch(ctx context.Context) {
 	})
 }
 
-// tagAndPush размечает и отправляет. Если ml недоступен, вакансии уходят без тегов,
-// а теги появятся при следующем запуске. Ошибка — только ошибка отправки.
 func (a *app) tagAndPush(ctx context.Context) error {
 	a.tagPushMu.Lock()
 	defer a.tagPushMu.Unlock()
 	if _, err := tag.Run(ctx, a.st, tag.NewClient(a.cfg.LayaURL), a.log); err != nil {
 		a.log.Warn("разметка не удалась, вакансии уйдут без тегов", "err", err)
+	}
+	if a.cfg.PodborURL == "" {
+		a.log.Info("PODBOR_URL не задан, отправка на сервер пропущена")
+		return nil
 	}
 	_, err := push.Push(ctx, a.st, push.NewClient(a.cfg.PodborURL, a.cfg.ImportToken), a.runReport(), a.log)
 	if err != nil {
@@ -345,7 +338,6 @@ func (a *app) runReport() *push.Run {
 	return r
 }
 
-// collected записывает итог по сайтам и решает код выхода: ошибка, только если не собрался ни один сайт.
 func (a *app) collected(ctx context.Context) error {
 	if ctx.Err() != nil {
 		return ctx.Err()
@@ -372,7 +364,6 @@ func (a *app) collected(ctx context.Context) error {
 	return nil
 }
 
-// parseSince понимает 7d и обычные длительности Go (36h).
 func parseSince(s string) (time.Duration, error) {
 	if n, ok := strings.CutSuffix(s, "d"); ok {
 		d, err := strconv.Atoi(n)

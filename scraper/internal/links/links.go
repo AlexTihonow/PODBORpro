@@ -1,4 +1,3 @@
-// Package links — этап 1: обходит страницы выдачи и собирает в data/links.json только ссылки.
 package links
 
 import (
@@ -12,7 +11,6 @@ import (
 	"github.com/AlexTihonow/PODBORpro/scraper/internal/sources"
 )
 
-// MaxAge — ссылки старше этого без fetched_at удаляются: вакансию, скорее всего, сняли.
 const MaxAge = 30 * 24 * time.Hour
 
 type Stats struct {
@@ -24,9 +22,6 @@ type Stats struct {
 	Errors     int
 }
 
-// Run обходит запросы одного источника. Ошибка — только та, что останавливает сбор сайта
-// (проверка «не робот», 403, 429); остальные пишутся в errors.json, и обход идёт дальше.
-// bootstrap — первый сбор: уже известные ссылки обход не останавливают.
 func Run(ctx context.Context, st *data.Store, src sources.Source, queries []sources.Query, bootstrap bool, log *slog.Logger) (Stats, error) {
 	var s Stats
 	n, err := st.PruneLinks(MaxAge)
@@ -45,7 +40,7 @@ func Run(ctx context.Context, st *data.Store, src sources.Source, queries []sour
 		found, err := src.ListLinks(ctx, q, known)
 		s.Queries++
 		s.Found += len(found)
-		added, serr := st.AddLinks(found) // что успели найти до ошибки — сохраняем
+		added, serr := st.AddLinks(found)
 		s.Added += added
 		if serr != nil {
 			return s, serr

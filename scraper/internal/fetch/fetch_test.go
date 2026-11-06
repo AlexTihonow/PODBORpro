@@ -18,7 +18,6 @@ import (
 
 var quiet = slog.New(slog.NewTextHandler(io.Discard, nil))
 
-// fakeSource разбирает страницы вида "title|description"; "broken" не разбирается, "gone" — снятая.
 type fakeSource struct{}
 
 func (fakeSource) Code() string { return "fake" }
@@ -36,7 +35,6 @@ func (fakeSource) Parse(b []byte, l sources.Link) (sources.Vacancy, error) {
 }
 func (fakeSource) IsGone(status int, b []byte) bool { return status == 404 || string(b) == "gone" }
 
-// fakeSite отдаёт страницы по адресу; err — ошибка на этом адресе.
 type fakeSite struct {
 	pages map[string]string
 	errs  map[string]error
@@ -94,7 +92,6 @@ func TestFetchParsesAndDeletesHTML(t *testing.T) {
 		"https://fake/1": "Go-разработчик|Пишем на Go",
 		"https://fake/2": "broken",
 		"https://fake/3": "gone",
-		// 4 — 404
 	}}
 	s, err := Run(context.Background(), st, fakeSource{}, site, Options{}, quiet)
 	if err != nil {
@@ -119,7 +116,6 @@ func TestFetchParsesAndDeletesHTML(t *testing.T) {
 		t.Error("fetched_at не поставлен")
 	}
 
-	// Повторный запуск не скачивает уже скачанное и неразобранное.
 	site.got = nil
 	if _, err := Run(context.Background(), st, fakeSource{}, site, Options{}, quiet); err != nil {
 		t.Fatal(err)
@@ -128,7 +124,6 @@ func TestFetchParsesAndDeletesHTML(t *testing.T) {
 		t.Errorf("повторный запуск снова скачал %v", site.got)
 	}
 
-	// После исправления селекторов -retry-failed разбирает failed/ и удаляет удачные.
 	if err := os.WriteFile(st.FailedPath(link("2")), []byte("QA|Тестируем"), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -143,7 +138,6 @@ func TestFetchParsesAndDeletesHTML(t *testing.T) {
 
 func TestFetchResumesFromDisk(t *testing.T) {
 	st := setup(t, "1")
-	// Прошлый запуск упал после скачивания, до разбора.
 	if err := os.MkdirAll(st.HTMLDir(), 0o755); err != nil {
 		t.Fatal(err)
 	}

@@ -7,8 +7,6 @@ import (
 	"strings"
 )
 
-// Robots — правила robots.txt для одного бота (RFC 9309): берётся группа с нашим именем, иначе группа «*».
-// Из подходящих правил побеждает самое длинное; при равной длине — Allow.
 type Robots struct {
 	rules []rule
 }
@@ -19,13 +17,10 @@ type rule struct {
 	re      *regexp.Regexp
 }
 
-// AllowAll — robots.txt нет (4xx): можно всё.
 var AllowAll = &Robots{}
 
-// DisallowAll — robots.txt не получили (5xx, обрыв): по RFC 9309 считаем, что нельзя ничего.
 var DisallowAll = &Robots{rules: []rule{{allow: false, pattern: "/", re: regexp.MustCompile("^/")}}}
 
-// ParseRobots разбирает robots.txt. agent — имя бота из User-Agent, например "PODBORpro-bot".
 func ParseRobots(body []byte, agent string) *Robots {
 	agent = strings.ToLower(agent)
 	var (
@@ -50,7 +45,7 @@ func ParseRobots(body []byte, agent string) *Robots {
 		val = strings.TrimSpace(val)
 		switch key {
 		case "user-agent":
-			if inRules { // новая группа
+			if inRules {
 				groupAgents, inRules = nil, false
 			}
 			groupAgents = append(groupAgents, strings.ToLower(val))
@@ -67,7 +62,7 @@ func ParseRobots(body []byte, agent string) *Robots {
 			}
 		case "allow", "disallow":
 			inRules = true
-			if val == "" { // пустой Disallow — ничего не запрещает
+			if val == "" {
 				continue
 			}
 			r := rule{allow: key == "allow", pattern: val, re: compile(val)}
@@ -77,7 +72,6 @@ func ParseRobots(body []byte, agent string) *Robots {
 				star = append(star, r)
 			}
 		default:
-			// Sitemap, Host, Crawl-delay и прочее группу не прерывают
 		}
 	}
 	if haveMine {
@@ -103,7 +97,6 @@ func compile(pattern string) *regexp.Regexp {
 	return regexp.MustCompile(b.String())
 }
 
-// Allowed отвечает, можно ли ходить по пути с параметрами (например "/search/vacancy?text=go").
 func (r *Robots) Allowed(pathAndQuery string) bool {
 	if pathAndQuery == "" {
 		pathAndQuery = "/"

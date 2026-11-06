@@ -1,4 +1,3 @@
-// Package sources — общий интерфейс сайта с вакансиями и общие типы этапов.
 package sources
 
 import (
@@ -10,59 +9,47 @@ import (
 	"time"
 )
 
-// Source — один сайт с вакансиями.
 type Source interface {
-	// Code — код источника, совпадает с sources.code в базе: "headhunter", "habr".
 	Code() string
 
-	// ListLinks обходит страницы выдачи по запросу и возвращает ссылки на вакансии.
-	// known — уже известные ссылки: как только страница выдачи целиком из них, обход останавливается.
 	ListLinks(ctx context.Context, query Query, known map[string]bool) ([]Link, error)
 
-	// Parse разбирает страницу одной вакансии.
 	Parse(html []byte, link Link) (Vacancy, error)
 
-	// IsGone отвечает, снята ли вакансия, по коду ответа и странице.
 	IsGone(status int, html []byte) bool
 }
 
-// Query — один поисковый запрос из sources.yaml.
 type Query struct {
-	URL string
-	// MaxPages — сколько страниц выдачи листать; 0 — до конца.
+	URL      string
 	MaxPages int
-	// Match — для карты сайта: брать только тематические страницы, в адресе которых есть одно из слов.
-	Match []string
+	Match    []string
 }
 
-// Link — запись data/links.json.
 type Link struct {
 	Source     string     `json:"source"`
 	ExternalID string     `json:"external_id"`
 	URL        string     `json:"url"`
 	FoundAt    time.Time  `json:"found_at"`
 	FetchedAt  *time.Time `json:"fetched_at"`
-	// FailedAt — страница не разобралась и лежит в data/html/failed/; заново её не скачиваем.
-	FailedAt *time.Time `json:"failed_at,omitempty"`
+	FailedAt   *time.Time `json:"failed_at,omitempty"`
 }
 
-// Key — ключ вакансии, по нему же сервер не создаёт дубли.
 func (l Link) Key() string { return l.Source + ":" + l.ExternalID }
 
-// Tag — ответ Laya по дереву тегов.
 type Tag struct {
 	Path       string  `json:"path"`
+	Label      string  `json:"label,omitempty"`
 	Confidence float64 `json:"confidence"`
 	Stopped    string  `json:"stopped,omitempty"`
+	Source     string  `json:"source,omitempty"`
 }
 
-// Label — ответ Laya на один вопрос: грейд, формат работы, английский...
 type Label struct {
 	Value      any     `json:"value"`
 	Confidence float64 `json:"confidence"`
+	Source     string  `json:"source,omitempty"`
 }
 
-// Vacancy — запись data/vacancies.json.
 type Vacancy struct {
 	Source        string    `json:"source"`
 	ExternalID    string    `json:"external_id"`
@@ -86,18 +73,14 @@ type Vacancy struct {
 	Labels      map[string]Label `json:"labels"`
 	NeedsReview *bool            `json:"needs_review,omitempty"`
 	TaggedWith  *string          `json:"tagged_with"`
-	// TaggedHash — content_hash на момент разметки: если он поменялся, вакансию размечаем заново.
-	TaggedHash string `json:"tagged_hash,omitempty"`
+	TaggedHash  string           `json:"tagged_hash,omitempty"`
 
-	PushedHash *string `json:"pushed_hash"`
-	// PushedTaggedWith — tagged_with на момент отправки: теги появились или сменились — отправляем снова.
+	PushedHash       *string `json:"pushed_hash"`
 	PushedTaggedWith *string `json:"pushed_tagged_with,omitempty"`
 }
 
-// Key — ключ вакансии: источник и номер на сайте.
 func (v Vacancy) Key() string { return v.Source + ":" + v.ExternalID }
 
-// Hash считает content_hash от заголовка, описания, зарплаты и навыков.
 func (v Vacancy) Hash() string {
 	h := sha256.New()
 	fmt.Fprintf(h, "%s\x00%s\x00%s\x00%s\x00%s\x00%s",
@@ -113,12 +96,10 @@ func ptrStr[T any](p *T) string {
 	return fmt.Sprint(*p)
 }
 
-// NeedsTagging — вакансию ещё не размечали или она изменилась после разметки.
 func (v Vacancy) NeedsTagging() bool {
 	return v.TaggedWith == nil || v.TaggedHash != v.ContentHash
 }
 
-// NeedsPush — вакансия новая, изменилась или получила теги после прошлой отправки.
 func (v Vacancy) NeedsPush() bool {
 	if v.PushedHash == nil || *v.PushedHash != v.ContentHash {
 		return true

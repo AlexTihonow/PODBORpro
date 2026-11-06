@@ -1,5 +1,4 @@
 #!/bin/sh
-# Собирает PDF из HTML в docs/plan/src. Нужен Chromium (ставится вместе с Playwright: npx playwright install chromium).
 set -e
 cd "$(dirname "$0")"
 node gantt.mjs

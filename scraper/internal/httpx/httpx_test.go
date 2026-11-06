@@ -38,11 +38,11 @@ func TestRobotsHH(t *testing.T) {
 		"/vacancy/137568898":                     true,
 		"/vacancies/go-razrabotchik":             true,
 		"/sitemap/vacancies0.xml":                true,
-		"/search/vacancy?text=golang&area=1":     false, // Disallow: *?*
+		"/search/vacancy?text=golang&area=1":     false,
 		"/vacancies/go-razrabotchik?page=1":      false,
 		"/account/login":                         false,
 		"/robots.txt":                            true,
-		"/vacancy/137568898?vacancyId=137568898": true, // Allow: *?vacancyId* длиннее, чем *?*
+		"/vacancy/137568898?vacancyId=137568898": true,
 	} {
 		if got := r.Allowed(path); got != want {
 			t.Errorf("Allowed(%q) = %v, ждали %v", path, got, want)
@@ -133,7 +133,7 @@ func TestGetUserAgentPauseAndRobots(t *testing.T) {
 			t.Errorf("User-Agent %q", ua)
 		}
 	}
-	if len(uas) != 3 { // robots.txt и две страницы; запрещённую не запрашивали
+	if len(uas) != 3 {
 		t.Errorf("запросов %d, ждали 3", len(uas))
 	}
 	if len(fs.slept) < 2 {

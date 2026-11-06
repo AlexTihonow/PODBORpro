@@ -1,8 +1,3 @@
-// Package habr — источник Хабр Карьера (career.habr.com).
-//
-// Ссылки — из выдачи по классу ссылки карточки, следующая страница — a.next_page.
-// Поля вакансии — из состояния страницы <script type="application/json" data-ssr-state="true">:
-// это данные, из которых сайт сам рисует страницу, они устойчивее CSS-классов.
 package habr
 
 import (
@@ -35,7 +30,6 @@ func (*Habr) Code() string { return Code }
 
 var idRe = regexp.MustCompile(`^(?:https://career\.habr\.com)?/vacancies/(\d+)/?(?:[?#].*)?$`)
 
-// Canonical приводит ссылку к виду https://career.habr.com/vacancies/<номер>.
 func Canonical(href string) (id, url string, ok bool) {
 	m := idRe.FindStringSubmatch(href)
 	if m == nil {

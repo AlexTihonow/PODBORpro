@@ -29,6 +29,5 @@ jobs:
       - name: go vet
         run: go vet ./...
 
-      # Тесты разбора — на сохранённых страницах в internal/sources/<код>/testdata, без сети.
       - name: go test
         run: go test -race ./...

@@ -13,18 +13,12 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
 
-      # Клиент — обычные ES-модули: проверяем синтаксис без установки зависимостей.
       - name: Check JavaScript syntax
-        run: |
-          for file in web/js/*.js web/js/pages/*.js web/dev-server.mjs; do
-            echo "Checking $file"
-            node --check "$file"
-          done
+        run: find web/js web/dev-server.mjs -name "*.js" -o -name "*.mjs" | xargs -n1 node --check
 
-      - name: Check required static files
+      - name: Check stylesheets and data
         run: |
-          test -f web/index.html
-          test -f web/styles.css
-          test -f web/favicon.svg
+          grep -o 'href="css/[^"]*"' web/index.html | cut -d'"' -f2 | sed 's|^|web/|' | xargs ls
+          node -e 'const d=require("./web/data/vacancies.json"); if(!d.items.length) process.exit(1); console.log(d.items.length, "vacancies")'

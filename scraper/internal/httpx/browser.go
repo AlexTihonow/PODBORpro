@@ -13,11 +13,6 @@ import (
 	"github.com/chromedp/chromedp"
 )
 
-// Browser открывает страницы в Chrome через chromedp.
-//
-// Без окна — для сайтов, которые собирают страницу через JavaScript (render: browser в sources.yaml).
-// С окном (флаг -browser при первом сборе) сборщик при проверке «не робот» ждёт,
-// пока человек пройдёт её сам и нажмёт Enter. Сами проверки сборщик не проходит.
 type Browser struct {
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -25,15 +20,13 @@ type Browser struct {
 	prompt *Prompt
 }
 
-// BrowserOptions — настройки браузера.
 type BrowserOptions struct {
 	UserAgent  string
-	ProfileDir string // постоянный профиль: cookies после пройденной проверки сохраняются
+	ProfileDir string
 	Window     bool
 	Prompt     *Prompt
 }
 
-// NewBrowser запускает Chrome. Close закрывает его.
 func NewBrowser(opt BrowserOptions) (*Browser, error) {
 	allocOpts := append(slices.Clone(chromedp.DefaultExecAllocatorOptions[:]),
 		chromedp.UserAgent(opt.UserAgent),
@@ -50,7 +43,7 @@ func NewBrowser(opt BrowserOptions) (*Browser, error) {
 	}
 	actx, acancel := chromedp.NewExecAllocator(context.Background(), allocOpts...)
 	ctx, cancel := chromedp.NewContext(actx)
-	if err := chromedp.Do(ctx); err != nil { // запускает браузер
+	if err := chromedp.Do(ctx); err != nil {
 		cancel()
 		acancel()
 		return nil, fmt.Errorf("запуск Chrome: %w", err)
@@ -64,19 +57,16 @@ func NewBrowser(opt BrowserOptions) (*Browser, error) {
 
 func (b *Browser) Close() { b.cancel() }
 
-// Tab — отдельная вкладка для одного сайта: при параллельном сборе сайты друг другу не мешают.
 type Tab struct {
 	b   *Browser
 	ctx context.Context
 }
 
-// Tab открывает новую вкладку. Она закрывается вместе с браузером.
 func (b *Browser) Tab() *Tab {
-	ctx, _ := chromedp.NewContext(b.ctx) //nolint:govet // вкладку закрывает Close браузера
+	ctx, _ := chromedp.NewContext(b.ctx) //nolint:govet
 	return &Tab{b: b, ctx: ctx}
 }
 
-// Render открывает страницу и возвращает её HTML после выполнения JavaScript.
 func (t *Tab) Render(ctx context.Context, url string) (Response, error) {
 	resp, err := t.open(ctx, url)
 	if err != nil || !IsCaptcha(resp.Body) || !t.b.window {
@@ -100,7 +90,7 @@ func (t *Tab) open(ctx context.Context, url string) (Response, error) {
 	}
 	if err := chromedp.Do(tctx,
 		chromedp.WaitReady(chromedp.CSS("body")),
-		chromedp.Sleep(time.Second), // дать странице дорисоваться
+		chromedp.Sleep(time.Second),
 	); err != nil {
 		return Response{}, err
 	}
@@ -119,8 +109,6 @@ func (t *Tab) open(ctx context.Context, url string) (Response, error) {
 	return Response{Status: status, Body: []byte(html), URL: final}, nil
 }
 
-// Prompt — ожидание Enter в терминале. Общий на все сайты: при параллельном сборе
-// вопросы не перемешиваются.
 type Prompt struct {
 	mu  sync.Mutex
 	in  *bufio.Reader
