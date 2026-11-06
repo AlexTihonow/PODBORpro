@@ -1,7 +1,6 @@
 import { clone } from "./util.js";
 import { listVacancies, loadCatalog, skillKey, toCard } from "./catalog.js";
 
-const FEED_SIZE = 30;
 const GRADES = ["intern", "junior", "middle", "senior", "lead"];
 const WEIGHTS = { similarity: 0.35, skills: 0.35, grade: 0.15, freshness: 0.15 };
 const FRESHNESS_DAYS = 30;
@@ -31,12 +30,11 @@ export async function buildFeed(profile, city) {
     .map(({ item }) => item)
     // Skill matches first, title-only matches after them; score orders within each group.
     .sort((a, b) => hasSkillMatch(b) - hasSkillMatch(a) || b.score - a.score);
-  // total = every matching vacancy; the feed itself shows only the best FEED_SIZE of them.
-  const matching = ranked.length;
-  const items = ranked.slice(0, FEED_SIZE);
+  // The feed shows every matching vacancy, best first.
+  const items = ranked;
 
   cachedFeed = items;
-  return { items: clone(items), total: matching, simplified: false };
+  return { items: clone(items), total: items.length, simplified: false };
 }
 
 function rank(vacancy, profile, now) {

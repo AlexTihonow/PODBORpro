@@ -11,7 +11,8 @@
   padding: 22px;
   overflow: hidden;
   animation: rise 0.45s both;
-  animation-delay: calc(var(--i, 0) * 45ms);
+  /* Stagger only the first cards: the feed can hold hundreds. */
+  animation-delay: calc(min(var(--i, 0), 12) * 45ms);
   transition:
     transform 0.2s ease,
     box-shadow 0.2s ease,
