@@ -15,6 +15,13 @@ const SKILL_ALIASES = {
   "node.js": "nodejs",
   node: "nodejs",
 };
+// Words (already cut to 6 chars by words()) that appear in almost every title and
+// therefore say nothing about fit: without this every "Разработчик ..." matched every profile.
+const GENERIC_WORDS = new Set([
+  "разраб", "програ", "develo", "engine", "специа", "инжене", "сотруд", "работа",
+  "junior", "middle", "senior", "lead", "джун", "мидл", "сеньор", "стажер", "стажёр",
+  "intern", "ведущи", "старши", "младши", "главны", "team", "tech", "на", "по", "для",
+]);
 
 let cachedFeed = [];
 
@@ -29,8 +36,11 @@ export async function buildFeed(profile, city) {
   if (city) vacancies = vacancies.filter((vacancy) => vacancy.city === city);
 
   const items = vacancies
-    .map((vacancy) => rank(vacancy, profile, now))
-    .sort((a, b) => b.score - a.score)
+    .map((vacancy) => ({ vacancy, item: rank(vacancy, profile, now) }))
+    .filter(({ vacancy, item }) => isRelevant(vacancy, item, profile))
+    .map(({ item }) => item)
+    // Skill matches first, title-only matches after them; score orders within each group.
+    .sort((a, b) => hasSkillMatch(b) - hasSkillMatch(a) || b.score - a.score)
     .slice(0, FEED_SIZE);
 
   cachedFeed = items;
@@ -40,7 +50,12 @@ export async function buildFeed(profile, city) {
 function rank(vacancy, profile, now) {
   const wanted = new Set((profile.skills ?? []).map((skill) => normalize(skill.name)));
   const names = unique(vacancy.skills.map((skill) => skill.name));
-  const matched = names.filter((name) => wanted.has(normalize(name)));
+  // Vacancies without a parsed skill list still count a skill named in their title or tags.
+  const text = textWords([vacancy.title, ...vacancy.tags.map((tag) => tag.label)].join(" "));
+  const matched = unique([
+    ...names.filter((name) => wanted.has(normalize(name))),
+    ...(profile.skills ?? []).map((skill) => skill.name).filter((name) => text.has(normalize(name))),
+  ]);
   const missing = names.filter((name) => !wanted.has(normalize(name))).slice(0, 4);
   const gradeFit = compareGrades(vacancy.grade, profile.target_grade);
 
@@ -64,13 +79,38 @@ function rank(vacancy, profile, now) {
   };
 }
 
+// The feed is a filter, not just a sort: a vacancy must share a selected skill with the
+// profile. The target title alone admits only vacancies that have no skill list to compare,
+// and is the only criterion when the profile has no skills selected.
+function isRelevant(vacancy, item, profile) {
+  const { matched_skills: matched, parts } = item.explanation;
+  if (matched.length > 0) return true;
+  const hasProfileSkills = (profile.skills ?? []).length > 0;
+  return parts.similarity > 0 && (!hasProfileSkills || vacancy.skills.length === 0);
+}
+
+function hasSkillMatch(item) {
+  return item.explanation.matched_skills.length > 0 ? 1 : 0;
+}
+
+function textWords(text) {
+  return new Set(
+    String(text ?? "")
+      .toLowerCase()
+      .split(/[^\p{L}\p{N}+#.]+/u)
+      .map((word) => normalize(word.replace(/\.$/, ""))),
+  );
+}
+
 function similarity(targetTitle, vacancy) {
-  const target = words(targetTitle);
+  const target = new Set([...words(targetTitle)].filter((word) => !GENERIC_WORDS.has(word)));
   if (target.size === 0) return 0;
-  const haystack = words([vacancy.title, ...vacancy.tags.map((tag) => tag.label)].join(" "));
+  const haystack = [...words([vacancy.title, ...vacancy.tags.map((tag) => tag.label)].join(" "))].filter(
+    (word) => !GENERIC_WORDS.has(word),
+  );
   let hits = 0;
   for (const word of target) {
-    if ([...haystack].some((candidate) => candidate.startsWith(word) || word.startsWith(candidate))) hits++;
+    if (haystack.some((candidate) => candidate.startsWith(word) || word.startsWith(candidate))) hits++;
   }
   return hits / target.size;
 }
