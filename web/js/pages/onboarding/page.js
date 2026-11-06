@@ -79,8 +79,11 @@ export function renderOnboardingPage() {
       </label>
 
       <div class="form-actions">
-        <span class="field__hint">Сначала загрузите резюме — данные можно будет проверить на следующем шаге</span>
-        <button class="btn btn--primary btn--md" type="button" data-next ${state.fileName ? "" : "disabled"}>Продолжить ${icon("arrow")}</button>
+        <span class="field__hint">${state.fileName ? "Данные из резюме можно будет проверить на следующем шаге" : "Нет резюме под рукой? Пропустите шаг и отметьте навыки вручную"}</span>
+        <div class="form-actions__buttons">
+          ${state.fileName ? "" : `<button class="btn btn--ghost btn--md" type="button" data-skip>Пропустить</button>`}
+          <button class="btn btn--primary btn--md" type="button" data-next ${state.fileName ? "" : "disabled"}>Продолжить ${icon("arrow")}</button>
+        </div>
       </div>
     </div>`;
   }
@@ -91,7 +94,7 @@ export function renderOnboardingPage() {
         <span class="onboarding-step__icon onboarding-step__icon--violet">${icon("sparkles")}</span>
         <div>
           <h2 class="onboarding-step__title">Подтвердите навыки</h2>
-          <p class="onboarding-step__text">Мы нашли их в резюме. Снимите лишнее — от этого зависит точность подбора.</p>
+          <p class="onboarding-step__text">${state.fileName ? "Мы нашли их в резюме. Снимите лишнее — от этого зависит точность подбора." : "Отметьте, чем владеете, — от этого зависит точность подбора."}</p>
         </div>
       </div>
 
@@ -177,6 +180,12 @@ export function renderOnboardingPage() {
       if (file) pickFile(file);
     });
 
+    main.querySelector("[data-skip]")?.addEventListener("click", () => {
+      state.error = "";
+      state.step = 1;
+      draw();
+    });
+
     main.querySelector("[data-next]")?.addEventListener("click", () => {
       if (state.step === 0 && !state.fileName) return;
       state.step = Math.min(2, state.step + 1);
@@ -234,7 +243,7 @@ export function renderOnboardingPage() {
         work_formats: [...state.workFormats],
         salary_from: Number(state.salaryFrom) || null,
         tone: state.tone,
-        resume_status: "ready",
+        resume_status: state.fileName ? "ready" : "none",
         skills: [...state.skills].map((name, index) => ({ id: 100 + index, name })),
       };
 
