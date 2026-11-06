@@ -1,20 +1,10 @@
 import { clone } from "./util.js";
-import { listVacancies, loadCatalog, toCard } from "./catalog.js";
+import { listVacancies, loadCatalog, skillKey, toCard } from "./catalog.js";
 
 const FEED_SIZE = 30;
 const GRADES = ["intern", "junior", "middle", "senior", "lead"];
 const WEIGHTS = { similarity: 0.35, skills: 0.35, grade: 0.15, freshness: 0.15 };
 const FRESHNESS_DAYS = 30;
-const SKILL_ALIASES = {
-  golang: "go",
-  postgres: "postgresql",
-  "postgre sql": "postgresql",
-  js: "javascript",
-  ts: "typescript",
-  k8s: "kubernetes",
-  "node.js": "nodejs",
-  node: "nodejs",
-};
 // Words (already cut to 6 chars by words()) that appear in almost every title and
 // therefore say nothing about fit: without this every "Разработчик ..." matched every profile.
 const GENERIC_WORDS = new Set([
@@ -35,16 +25,18 @@ export async function buildFeed(profile, city) {
   let vacancies = await listVacancies();
   if (city) vacancies = vacancies.filter((vacancy) => vacancy.city === city);
 
-  const items = vacancies
+  const ranked = vacancies
     .map((vacancy) => ({ vacancy, item: rank(vacancy, profile, now) }))
     .filter(({ vacancy, item }) => isRelevant(vacancy, item, profile))
     .map(({ item }) => item)
     // Skill matches first, title-only matches after them; score orders within each group.
-    .sort((a, b) => hasSkillMatch(b) - hasSkillMatch(a) || b.score - a.score)
-    .slice(0, FEED_SIZE);
+    .sort((a, b) => hasSkillMatch(b) - hasSkillMatch(a) || b.score - a.score);
+  // total = every matching vacancy; the feed itself shows only the best FEED_SIZE of them.
+  const matching = ranked.length;
+  const items = ranked.slice(0, FEED_SIZE);
 
   cachedFeed = items;
-  return { items: clone(items), total: items.length, simplified: false };
+  return { items: clone(items), total: matching, simplified: false };
 }
 
 function rank(vacancy, profile, now) {
@@ -138,10 +130,7 @@ function words(text) {
   );
 }
 
-function normalize(name) {
-  const key = String(name).trim().toLowerCase();
-  return SKILL_ALIASES[key] ?? key;
-}
+const normalize = skillKey;
 
 function unique(names) {
   const seen = new Set();

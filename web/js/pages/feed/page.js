@@ -86,18 +86,21 @@ function hero(feed) {
   const items = feed?.items ?? [];
   const best = items.reduce((max, item) => Math.max(max, item.score ?? 0), 0);
   const strong = items.filter((item) => item.score >= 0.7).length;
+  // feed.total counts every matching vacancy; items holds only the best of them.
+  const total = Math.max(feed?.total ?? 0, items.length);
+  const shownNote = total > items.length ? ` Показываем ${items.length} лучших из ${total}.` : "";
 
   return `<section class="page-hero">
     <div class="page-hero__text">
       <span class="eyebrow">${icon("sparkles")} Персональная подборка</span>
       <h1 class="page-title">Вакансии для вас</h1>
-      <p class="page-subtitle">Собрали варианты по навыкам, уровню и условиям. Совпадение считаем по вашему профилю.</p>
+      <p class="page-subtitle">Собрали варианты по навыкам, уровню и условиям. Совпадение считаем по вашему профилю.${shownNote}</p>
     </div>
     <div class="page-hero__aside">
       <div class="hero-stats">
         <div class="hero-stat">
-          <strong>${feed ? items.length : "—"}</strong>
-          <span>вакансий</span>
+          <strong>${feed ? total : "—"}</strong>
+          <span>подходящих вакансий</span>
         </div>
         <div class="hero-stat">
           <strong>${feed ? strong : "—"}</strong>

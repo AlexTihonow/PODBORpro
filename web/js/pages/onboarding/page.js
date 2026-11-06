@@ -1,11 +1,13 @@
-import { patchMe } from "../../api/index.js";
+import { listSkillNames, patchMe, skillKey } from "../../api/index.js";
 import { navigate } from "../../core/router.js";
-import { setProfile } from "../../core/session.js";
+import { getProfile, setProfile } from "../../core/session.js";
 import { mountShell } from "../../ui/shell.js";
 import { alert, esc, icon } from "../../ui/components.js";
 
 const STEPS = ["Резюме", "Навыки", "Должность и условия"];
-const SAMPLE_SKILLS = ["Go", "PostgreSQL", "Docker", "Kubernetes", "Python", "gRPC", "Git", "Redis"];
+// Shown while the vacancy catalog loads, or if it cannot be loaded.
+const FALLBACK_SKILLS = ["Go", "PostgreSQL", "Docker", "Kubernetes", "Python", "gRPC", "Git", "Redis"];
+const POPULAR_SKILLS_SHOWN = 30;
 
 const RESUME_EXTENSIONS = [".pdf", ".docx"];
 const RESUME_MAX_BYTES = 10 * 1024 * 1024;
@@ -23,7 +25,11 @@ export function renderOnboardingPage() {
     step: 0,
     fileName: "",
     file: null,
-    skills: new Set(["Go", "PostgreSQL", "Docker"]),
+    skills: new Set(getProfile()?.skills?.map((skill) => skill.name) ?? ["Go", "PostgreSQL", "Docker"]),
+    // Every skill found in the vacancy catalog, most frequent first.
+    skillOptions: FALLBACK_SKILLS.map((name) => ({ name, count: 0 })),
+    skillQuery: "",
+    showAllSkills: false,
     targetTitle: "Разработчик на Go",
     grade: "junior",
     cities: "Москва",
@@ -98,12 +104,13 @@ export function renderOnboardingPage() {
         </div>
       </div>
 
-      <div class="toggle-list">
-        ${SAMPLE_SKILLS.map(
-          (skill) => `<button class="toggle${state.skills.has(skill) ? " toggle--on" : ""}" type="button" data-skill="${esc(skill)}">
-            ${state.skills.has(skill) ? icon("check") : icon("plus")} ${esc(skill)}
-          </button>`,
-        ).join("")}
+      <div class="skill-picker">
+        <label class="skill-picker__search">
+          ${icon("search")}
+          <input class="input" type="search" data-skill-query value="${esc(state.skillQuery)}"
+            placeholder="Найти навык или добавить свой — Enter" aria-label="Поиск навыка" />
+        </label>
+        <div class="toggle-list" data-skill-list>${skillToggles()}</div>
       </div>
 
       <div class="form-actions">
@@ -111,6 +118,56 @@ export function renderOnboardingPage() {
         <button class="btn btn--primary btn--md" type="button" data-next>Продолжить ${icon("arrow")}</button>
       </div>
     </div>`;
+  }
+
+  // Skills are compared by skillKey, so "Go" and "Golang" count as one skill.
+  function visibleSkills() {
+    const query = state.skillQuery.trim().toLowerCase();
+    const options = state.skillOptions.map((option) => option.name);
+    // Selected skills always stay visible; a selected synonym shows under its own spelling.
+    const selected = [...state.skills];
+    const selectedKeys = new Set(selected.map(skillKey));
+    const all = [...selected, ...options.filter((name) => !selectedKeys.has(skillKey(name)))];
+    if (query) {
+      return { names: all.filter((name) => name.toLowerCase().includes(query)), total: all.length, hidden: 0 };
+    }
+    const limit = state.showAllSkills ? Infinity : POPULAR_SKILLS_SHOWN;
+    const popular = options.slice(0, limit).map((name) => selected.find((skill) => skillKey(skill) === skillKey(name)) ?? name);
+    const popularKeys = new Set(popular.map(skillKey));
+    const extraSelected = selected.filter((name) => !popularKeys.has(skillKey(name)));
+    const names = [...extraSelected, ...popular];
+    return { names, total: all.length, hidden: Math.max(0, all.length - names.length) };
+  }
+
+  function skillToggles() {
+    const { names, total, hidden } = visibleSkills();
+    const query = state.skillQuery.trim();
+    const toggles = names.map(
+      (skill) => `<button class="toggle${state.skills.has(skill) ? " toggle--on" : ""}" type="button" data-skill="${esc(skill)}">
+        ${state.skills.has(skill) ? icon("check") : icon("plus")} ${esc(skill)}
+      </button>`,
+    );
+    if (query && !names.some((name) => skillKey(name) === skillKey(query))) {
+      toggles.push(`<button class="toggle toggle--add" type="button" data-skill-add>${icon("plus")} Добавить «${esc(query)}»</button>`);
+    }
+    if (hidden > 0) {
+      toggles.push(`<button class="btn btn--ghost btn--sm" type="button" data-skill-more>Показать все (${total})</button>`);
+    } else if (state.showAllSkills && !query) {
+      toggles.push(`<button class="btn btn--ghost btn--sm" type="button" data-skill-more>Свернуть</button>`);
+    }
+    return toggles.join("") || `<span class="field__hint">Ничего не нашлось</span>`;
+  }
+
+  // Re-render only the list so the search field keeps focus while typing.
+  function drawSkillList() {
+    const list = main.querySelector("[data-skill-list]");
+    if (list) list.innerHTML = skillToggles();
+  }
+
+  function toggleSkill(name) {
+    const existing = [...state.skills].find((skill) => skillKey(skill) === skillKey(name));
+    if (existing) state.skills.delete(existing);
+    else state.skills.add(name);
   }
 
   function preferencesStep() {
@@ -197,13 +254,26 @@ export function renderOnboardingPage() {
       draw();
     });
 
-    main.querySelectorAll("[data-skill]").forEach((button) => {
-      button.addEventListener("click", () => {
-        const skill = button.dataset.skill;
-        if (state.skills.has(skill)) state.skills.delete(skill);
-        else state.skills.add(skill);
-        draw();
-      });
+    main.querySelector("[data-skill-list]")?.addEventListener("click", (event) => {
+      const button = event.target.closest("button");
+      if (!button) return;
+      if (button.matches("[data-skill]")) toggleSkill(button.dataset.skill);
+      else if (button.matches("[data-skill-add]")) addTypedSkill();
+      else if (button.matches("[data-skill-more]")) state.showAllSkills = !state.showAllSkills;
+      drawSkillList();
+    });
+
+    const skillQuery = main.querySelector("[data-skill-query]");
+    skillQuery?.addEventListener("input", () => {
+      state.skillQuery = skillQuery.value;
+      drawSkillList();
+    });
+    skillQuery?.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      addTypedSkill();
+      skillQuery.value = state.skillQuery;
+      drawSkillList();
     });
 
     main.querySelectorAll("[data-format]").forEach((button) => {
@@ -299,6 +369,15 @@ export function renderOnboardingPage() {
   const observer = new MutationObserver(detach);
   observer.observe(document.getElementById("root"), { childList: true });
 
+  function addTypedSkill() {
+    const name = state.skillQuery.trim().replace(/\s+/g, " ");
+    if (!name) return;
+    const known = state.skillOptions.find((option) => skillKey(option.name) === skillKey(name));
+    const skill = known?.name ?? name;
+    if (![...state.skills].some((item) => skillKey(item) === skillKey(skill))) state.skills.add(skill);
+    state.skillQuery = "";
+  }
+
   function pickFile(file) {
     const name = file.name.toLowerCase();
     if (!RESUME_EXTENSIONS.some((ext) => name.endsWith(ext))) {
@@ -314,6 +393,14 @@ export function renderOnboardingPage() {
   }
 
   draw();
+
+  listSkillNames()
+    .then((options) => {
+      if (options.length === 0) return;
+      state.skillOptions = options;
+      if (state.step === 1) drawSkillList();
+    })
+    .catch(() => {});
 }
 
 function hasFiles(event) {
