@@ -23,6 +23,18 @@ jobs:
       - name: Set base path
         run: sed -i 's|<base href="/"[^>]*>|<base href="/${{ github.event.repository.name }}/">|' web/index.html
 
+      # Pages serves files with max-age=600, so browsers keep old JS/CSS for up to
+      # 10 minutes after a deploy. Give every local asset URL a per-commit ?v= so a
+      # new deploy is always fetched fresh. Runs before the SPA fallback copy.
+      - name: Cache busting
+        run: |
+          v="${GITHUB_SHA::8}"
+          sed -i -E "s#(href|src)=\"((css|js)/[^\"?]+|favicon\.svg)\"#\1=\"\2?v=$v\"#g" web/index.html
+          find web/js -name '*.js' -exec sed -i -E \
+            -e "s#(from \"\.[^\"?]+\.js)\"#\1?v=$v\"#g" \
+            -e "s#\"data/vacancies\.json\"#\"data/vacancies.json?v=$v\"#g" {} +
+          grep -c "?v=$v" web/index.html
+
       - name: SPA fallback
         run: cp web/index.html web/404.html
 
