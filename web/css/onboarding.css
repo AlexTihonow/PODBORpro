@@ -146,9 +146,19 @@
 }
 
 .upload-drop:hover,
-.upload-drop:focus-within {
+.upload-drop:focus-within,
+.upload-drop--over {
   border-color: var(--brand-300);
   background: var(--brand-50);
+}
+
+.upload-drop--over {
+  border-style: solid;
+  border-color: var(--brand-500, var(--brand-300));
+}
+
+.upload-drop--over > * {
+  pointer-events: none;
 }
 
 .upload-drop input {

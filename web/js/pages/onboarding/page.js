@@ -7,6 +7,9 @@ import { alert, esc, icon } from "../../ui/components.js";
 const STEPS = ["Резюме", "Навыки", "Должность и условия"];
 const SAMPLE_SKILLS = ["Go", "PostgreSQL", "Docker", "Kubernetes", "Python", "gRPC", "Git", "Redis"];
 
+const RESUME_EXTENSIONS = [".pdf", ".docx"];
+const RESUME_MAX_BYTES = 10 * 1024 * 1024;
+
 const WORK_FORMATS = [
   { value: "office", label: "Офис" },
   { value: "remote", label: "Удалённо" },
@@ -19,6 +22,7 @@ export function renderOnboardingPage() {
   const state = {
     step: 0,
     fileName: "",
+    file: null,
     skills: new Set(["Go", "PostgreSQL", "Docker"]),
     targetTitle: "Разработчик на Go",
     grade: "junior",
@@ -67,7 +71,7 @@ export function renderOnboardingPage() {
         </div>
       </div>
 
-      <label class="upload-drop">
+      <label class="upload-drop" data-drop>
         <input type="file" accept=".pdf,.docx" data-file />
         <span class="upload-drop__icon">${icon("upload")}</span>
         <span class="upload-drop__name">${state.fileName ? esc(state.fileName) : "Выберите файл резюме"}</span>
@@ -169,9 +173,36 @@ export function renderOnboardingPage() {
   function bind() {
     const fileInput = main.querySelector("[data-file]");
     fileInput?.addEventListener("change", () => {
-      state.fileName = fileInput.files?.[0]?.name ?? "";
-      draw();
+      const file = fileInput.files?.[0];
+      if (file) pickFile(file);
     });
+
+    const dropZone = main.querySelector("[data-drop]");
+    if (dropZone) {
+      let depth = 0;
+      dropZone.addEventListener("dragenter", (event) => {
+        if (!hasFiles(event)) return;
+        event.preventDefault();
+        depth += 1;
+        dropZone.classList.add("upload-drop--over");
+      });
+      dropZone.addEventListener("dragover", (event) => {
+        if (!hasFiles(event)) return;
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "copy";
+      });
+      dropZone.addEventListener("dragleave", () => {
+        depth = Math.max(0, depth - 1);
+        if (depth === 0) dropZone.classList.remove("upload-drop--over");
+      });
+      dropZone.addEventListener("drop", (event) => {
+        event.preventDefault();
+        depth = 0;
+        dropZone.classList.remove("upload-drop--over");
+        const file = event.dataTransfer?.files?.[0];
+        if (file) pickFile(file);
+      });
+    }
 
     main.querySelector("[data-next]")?.addEventListener("click", () => {
       if (state.step === 0 && !state.fileName) return;
@@ -242,5 +273,23 @@ export function renderOnboardingPage() {
     });
   }
 
+  function pickFile(file) {
+    const name = file.name.toLowerCase();
+    if (!RESUME_EXTENSIONS.some((ext) => name.endsWith(ext))) {
+      state.error = "Поддерживаются только файлы PDF и DOCX";
+    } else if (file.size > RESUME_MAX_BYTES) {
+      state.error = "Файл больше 10 МБ";
+    } else {
+      state.error = "";
+      state.file = file;
+      state.fileName = file.name;
+    }
+    draw();
+  }
+
   draw();
+}
+
+function hasFiles(event) {
+  return [...(event.dataTransfer?.types ?? [])].includes("Files");
 }
