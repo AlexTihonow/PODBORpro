@@ -177,33 +177,6 @@ export function renderOnboardingPage() {
       if (file) pickFile(file);
     });
 
-    const dropZone = main.querySelector("[data-drop]");
-    if (dropZone) {
-      let depth = 0;
-      dropZone.addEventListener("dragenter", (event) => {
-        if (!hasFiles(event)) return;
-        event.preventDefault();
-        depth += 1;
-        dropZone.classList.add("upload-drop--over");
-      });
-      dropZone.addEventListener("dragover", (event) => {
-        if (!hasFiles(event)) return;
-        event.preventDefault();
-        event.dataTransfer.dropEffect = "copy";
-      });
-      dropZone.addEventListener("dragleave", () => {
-        depth = Math.max(0, depth - 1);
-        if (depth === 0) dropZone.classList.remove("upload-drop--over");
-      });
-      dropZone.addEventListener("drop", (event) => {
-        event.preventDefault();
-        depth = 0;
-        dropZone.classList.remove("upload-drop--over");
-        const file = event.dataTransfer?.files?.[0];
-        if (file) pickFile(file);
-      });
-    }
-
     main.querySelector("[data-next]")?.addEventListener("click", () => {
       if (state.step === 0 && !state.fileName) return;
       state.step = Math.min(2, state.step + 1);
@@ -273,6 +246,50 @@ export function renderOnboardingPage() {
     });
   }
 
+  // Drop handling lives on window: a file dropped anywhere on the page (not only
+  // exactly on the dashed box) is accepted on the resume step, and the browser
+  // never navigates away to its own PDF viewer.
+  let dragDepth = 0;
+  const setOver = (on) => main.querySelector("[data-drop]")?.classList.toggle("upload-drop--over", on);
+  const onDragEnter = (event) => {
+    if (!hasFiles(event)) return;
+    event.preventDefault();
+    dragDepth += 1;
+    if (state.step === 0) setOver(true);
+  };
+  const onDragOver = (event) => {
+    if (!hasFiles(event)) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = state.step === 0 ? "copy" : "none";
+  };
+  const onDragLeave = () => {
+    dragDepth = Math.max(0, dragDepth - 1);
+    if (dragDepth === 0) setOver(false);
+  };
+  const onDrop = (event) => {
+    if (!hasFiles(event)) return;
+    event.preventDefault();
+    dragDepth = 0;
+    setOver(false);
+    const file = event.dataTransfer?.files?.[0];
+    if (file && state.step === 0) pickFile(file);
+  };
+  window.addEventListener("dragenter", onDragEnter);
+  window.addEventListener("dragover", onDragOver);
+  window.addEventListener("dragleave", onDragLeave);
+  window.addEventListener("drop", onDrop);
+  // Detach once the user leaves onboarding (the shell re-renders #root).
+  const detach = () => {
+    if (main.isConnected) return;
+    window.removeEventListener("dragenter", onDragEnter);
+    window.removeEventListener("dragover", onDragOver);
+    window.removeEventListener("dragleave", onDragLeave);
+    window.removeEventListener("drop", onDrop);
+    observer.disconnect();
+  };
+  const observer = new MutationObserver(detach);
+  observer.observe(document.getElementById("root"), { childList: true });
+
   function pickFile(file) {
     const name = file.name.toLowerCase();
     if (!RESUME_EXTENSIONS.some((ext) => name.endsWith(ext))) {
@@ -291,5 +308,7 @@ export function renderOnboardingPage() {
 }
 
 function hasFiles(event) {
-  return [...(event.dataTransfer?.types ?? [])].includes("Files");
+  const types = event.dataTransfer?.types;
+  if (!types) return false;
+  return Array.prototype.indexOf.call(types, "Files") !== -1 || (types.contains?.("Files") ?? false);
 }

@@ -109,6 +109,16 @@ async function route() {
 
 subscribe(route);
 
+// Never let the browser replace the SPA with a dropped file (e.g. its PDF viewer).
+// Pages that accept files (onboarding) handle the drop themselves.
+for (const type of ["dragover", "drop"]) {
+  window.addEventListener(type, (event) => {
+    if (event.dataTransfer?.types && Array.prototype.indexOf.call(event.dataTransfer.types, "Files") !== -1) {
+      event.preventDefault();
+    }
+  });
+}
+
 onAccessTokenCleared(() => {
   const root = getPathname().split("/").filter(Boolean)[0];
   if (root && PROTECTED_ROOTS.has(root)) {
