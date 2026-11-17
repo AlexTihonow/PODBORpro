@@ -1,8 +1,8 @@
-import { listSkillNames, listTagTree, patchMe, skillKey } from "../../api/index.js";
+import { getMe, listSkillNames, listTagTree, patchMe, skillKey, uploadResume } from "../../api/index.js";
 import { navigate } from "../../core/router.js";
-import { getProfile, setProfile } from "../../core/session.js";
+import { getProfile, setProfile, setStoredUser } from "../../core/session.js";
 import { mountShell } from "../../ui/shell.js";
-import { alert, esc, icon } from "../../ui/components.js";
+import { alert, esc, icon, initial } from "../../ui/components.js";
 
 const STEPS = ["Резюме", "Навыки", "Должность и условия"];
 // Shown while the vacancy catalog loads, or if it cannot be loaded.
@@ -20,25 +20,30 @@ const WORK_FORMATS = [
 
 export function renderOnboardingPage() {
   const main = mountShell("onboarding", "");
+  const saved = getProfile();
 
   const state = {
     step: 0,
     fileName: "",
     file: null,
-    skills: new Set(getProfile()?.skills?.map((skill) => skill.name) ?? ["Go", "PostgreSQL", "Docker"]),
+    uploading: false,
+    // Что сервер нашёл в резюме (null — не разбиралось или не вышло).
+    parsed: null,
+    parseFailed: false,
+    skills: new Set(saved?.skills?.length ? saved.skills.map((skill) => skill.name) : ["Go", "PostgreSQL", "Docker"]),
     // Every skill found in the vacancy catalog, most frequent first.
     skillOptions: FALLBACK_SKILLS.map((name) => ({ name, count: 0 })),
     skillQuery: "",
     showAllSkills: false,
     // Directions from the ml tag tree ("it/backend/go"); a chosen node opens its children.
-    tags: new Set(getProfile()?.tags ?? []),
+    tags: new Set(saved?.tags ?? []),
     tagTree: [],
-    targetTitle: "Разработчик на Go",
-    grade: "junior",
-    cities: "Москва",
-    salaryFrom: "120000",
-    workFormats: new Set(["remote"]),
-    tone: "neutral",
+    targetTitle: saved?.target_title || "Разработчик на Go",
+    grade: saved?.target_grade || "junior",
+    cities: saved?.cities?.length ? saved.cities.join(", ") : "Москва",
+    salaryFrom: saved?.salary_from != null ? String(saved.salary_from) : "120000",
+    workFormats: new Set(saved?.work_formats?.length ? saved.work_formats : ["remote"]),
+    tone: saved?.tone || "neutral",
     error: "",
   };
 
@@ -56,6 +61,56 @@ export function renderOnboardingPage() {
       </section>
     </div>`;
     bind();
+  }
+
+  function resumeHint() {
+    if (!state.fileName) return "Нет резюме под рукой? Пропустите шаг и отметьте навыки вручную";
+    if (state.uploading) return "Читаем резюме…";
+    if (state.parseFailed) return "Не удалось прочитать текст файла (возможно, это скан) — отметьте навыки вручную";
+    const p = state.parsed;
+    if (!p) return "Данные из резюме можно будет проверить на следующем шаге";
+    const found = [
+      p.full_name && `имя: ${esc(p.full_name)}`,
+      p.target_title && `должность: ${esc(p.target_title)}`,
+      p.city && `город: ${esc(p.city)}`,
+      p.skills?.length && `навыков: ${p.skills.length}`,
+    ].filter(Boolean);
+    return found.length > 0
+      ? `Нашли в резюме — ${found.join(", ")}. Проверьте на следующих шагах`
+      : "В резюме не нашлось знакомых полей — заполните следующие шаги вручную";
+  }
+
+  // Подставляем найденное в резюме в следующие шаги; пользователь всё проверит.
+  function applyParsed(p) {
+    if (!p) return;
+    if (p.skills?.length) {
+      // Стартовый набор по умолчанию заменяем навыками из резюме, сохранённые — дополняем.
+      if (!saved?.skills?.length) state.skills.clear();
+      for (const name of p.skills) {
+        if (![...state.skills].some((skill) => skillKey(skill) === skillKey(name))) state.skills.add(name);
+      }
+    }
+    if (p.target_title) state.targetTitle = p.target_title;
+    if (p.target_grade) state.grade = p.target_grade;
+    if (p.city) state.cities = p.city;
+    if (p.salary_from) state.salaryFrom = String(p.salary_from);
+    if (p.work_formats?.length) state.workFormats = new Set(p.work_formats);
+  }
+
+  // Имя из резюме сервер записывает в профиль, если своё не указано: обновим шапку.
+  async function refreshUserName() {
+    try {
+      const me = await getMe();
+      setStoredUser({ id: me.id, email: me.email, full_name: me.full_name, is_admin: me.is_admin });
+      const pill = document.querySelector(".user-pill");
+      if (pill && me.full_name) {
+        pill.title = me.full_name;
+        const nameEl = pill.querySelector(".user-pill__name");
+        const avatar = pill.querySelector(".avatar");
+        if (nameEl) nameEl.textContent = me.full_name;
+        if (avatar) avatar.textContent = initial(me.full_name);
+      }
+    } catch {}
   }
 
   function stepIndicator(current) {
@@ -88,10 +143,10 @@ export function renderOnboardingPage() {
       </label>
 
       <div class="form-actions">
-        <span class="field__hint">${state.fileName ? "Данные из резюме можно будет проверить на следующем шаге" : "Нет резюме под рукой? Пропустите шаг и отметьте навыки вручную"}</span>
+        <span class="field__hint">${resumeHint()}</span>
         <div class="form-actions__buttons">
           ${state.fileName ? "" : `<button class="btn btn--ghost btn--md" type="button" data-skip>Пропустить</button>`}
-          <button class="btn btn--primary btn--md" type="button" data-next ${state.fileName ? "" : "disabled"}>Продолжить ${icon("arrow")}</button>
+          <button class="btn btn--primary btn--md" type="button" data-next ${state.fileName && !state.uploading ? "" : "disabled"}>Продолжить ${icon("arrow")}</button>
         </div>
       </div>
     </div>`;
@@ -392,10 +447,16 @@ export function renderOnboardingPage() {
 
       try {
         // Сервер хранит навыки по названию (skill_names): по ним составляется письмо.
-        const { tags, ...serverProfile } = profile;
-        await patchMe({ ...serverProfile, skill_names: profile.skills.map((skill) => skill.name) });
-      } catch {}
-      setProfile(profile);
+        // resume_status и id навыков задаёт сервер, направления (tags) пока только в браузере.
+        const { tags, skills, resume_status, ...serverProfile } = profile;
+        const me = await patchMe({ ...serverProfile, skill_names: skills.map((skill) => skill.name) });
+        setProfile(me?.profile ? { ...profile, ...me.profile, tags } : profile);
+      } catch (error) {
+        state.error = error?.message || "Не удалось сохранить профиль";
+        button.disabled = false;
+        draw();
+        return;
+      }
       navigate("/feed");
     });
   }
@@ -463,8 +524,35 @@ export function renderOnboardingPage() {
       state.error = "";
       state.file = file;
       state.fileName = file.name;
+      void sendResume(file);
+      return;
     }
     draw();
+  }
+
+  async function sendResume(file) {
+    state.uploading = true;
+    state.parsed = null;
+    state.parseFailed = false;
+    draw();
+    try {
+      const result = await uploadResume(file);
+      if (state.file !== file) return; // пока читали, выбрали другой файл
+      state.parsed = result?.parsed ?? null;
+      state.parseFailed = result?.resume_status === "failed";
+      applyParsed(state.parsed);
+      if (state.parsed?.full_name) void refreshUserName();
+    } catch (error) {
+      if (state.file !== file) return;
+      state.error = error?.message || "Не удалось загрузить резюме";
+      state.file = null;
+      state.fileName = "";
+    } finally {
+      if (state.file === file || !state.file) {
+        state.uploading = false;
+        draw();
+      }
+    }
   }
 
   draw();

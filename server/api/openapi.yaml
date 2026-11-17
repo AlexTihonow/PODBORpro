@@ -213,8 +213,12 @@ paths:
       operationId: uploadResume
       summary: Загрузить файл резюме
       description: |
-        Файл сохраняется сразу, разбор ставится в очередь. Ход разбора — в `GET /me`,
-        поле `profile.resume_status`. Новый файл заменяет старый.
+        Файл сохраняется и сразу разбирается правилами, без нейросети: имя, желаемая
+        должность, уровень, город, зарплата, формат работы и навыки (по словарю навыков
+        и каталогу вакансий). Найденное возвращается в `parsed` — клиент предлагает его
+        в онбординге. Имя из резюме записывается в профиль, только если пользователь
+        не указал своё (стоит «Соискатель»). Если в файле нет текста (скан),
+        `resume_status` = `failed`. Новый файл заменяет старый.
       requestBody:
         required: true
         content:
@@ -228,12 +232,21 @@ paths:
                   format: binary
                   description: PDF или DOCX, не больше 10 МБ
       responses:
-        "202":
-          description: Файл принят, разбор поставлен в очередь
+        "200":
+          description: Файл сохранён и разобран
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ResumeUploadResponse" }
-              example: { resume_status: processing }
+              example:
+                resume_status: ready
+                parsed:
+                  full_name: Смирнова Анна Сергеевна
+                  target_title: Backend-разработчик (Go)
+                  target_grade: middle
+                  city: Санкт-Петербург
+                  salary_from: 250000
+                  work_formats: [remote]
+                  skills: [Go, PostgreSQL, Docker]
         "400":
           description: Не тот формат файла (код `unsupported_file`)
           content:
@@ -685,16 +698,17 @@ paths:
     get:
       tags: [applications]
       operationId: listApplications
-      summary: Мои отклики
+      summary: Мои отклики (доска)
+      description: |
+        Все отклики пользователя без постраничной разбивки: это карточки доски.
+        Внутри колонки (status) порядок задаёт position — 0 сверху.
       parameters:
         - name: status
           in: query
           schema: { $ref: "#/components/schemas/ApplicationStatus" }
-        - $ref: "#/components/parameters/Page"
-        - $ref: "#/components/parameters/PerPage"
       responses:
         "200":
-          description: Страница откликов, последние изменённые первыми
+          description: Отклики по колонкам доски, внутри колонки — по position
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ApplicationPage" }
@@ -704,6 +718,7 @@ paths:
                     id: 9
                     vacancy: *vacancyExample
                     status: draft
+                    position: 0
                     letter_id: 15
                     created_at: "2026-10-05T10:00:00Z"
                     updated_at: "2026-10-05T10:00:00Z"
@@ -714,6 +729,7 @@ paths:
       tags: [applications]
       operationId: createApplication
       summary: Создать отклик
+      description: Отклик создаётся в колонке «Черновик» сверху. Карточка вакансии сохраняется снимком на момент создания.
       requestBody:
         required: true
         content:
@@ -739,19 +755,44 @@ paths:
               schema: { $ref: "#/components/schemas/Error" }
               example: { error: { code: application_exists, message: Отклик на эту вакансию уже создан } }
 
+    delete:
+      tags: [applications]
+      operationId: deleteApplications
+      summary: Очистить колонку доски
+      description: Удаляет все отклики пользователя с указанным статусом (кнопка «Очистить все» в «Отказе»).
+      parameters:
+        - name: status
+          in: query
+          required: true
+          schema: { $ref: "#/components/schemas/ApplicationStatus" }
+      responses:
+        "204":
+          description: Колонка очищена
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
   /applications/{id}:
     parameters:
       - $ref: "#/components/parameters/Id"
+    delete:
+      tags: [applications]
+      operationId: deleteApplication
+      summary: Убрать отклик с доски
+      responses:
+        "204":
+          description: Отклик удалён
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
     patch:
       tags: [applications]
       operationId: patchApplication
-      summary: Сменить статус отклика
+      summary: Перенести отклик (сменить колонку и/или место в ней)
       requestBody:
         required: true
         content:
           application/json:
             schema: { $ref: "#/components/schemas/ApplicationPatch" }
-            example: { status: sent }
+            example: { status: sent, position: 0 }
       responses:
         "200":
           description: Отклик после изменения
@@ -927,11 +968,14 @@ components:
 
     RegisterRequest:
       type: object
-      required: [email, password, full_name]
+      required: [email, password]
       properties:
         email: { type: string, description: "Почта, регистр не важен" }
         password: { type: string, minLength: 8 }
-        full_name: { type: string, minLength: 1 }
+        full_name:
+          type: string
+          description: Имя; если не передано или пустое — «Соискатель»
+          x-go-type-skip-optional-pointer: true
 
     LoginRequest:
       type: object
@@ -1023,6 +1067,26 @@ components:
       required: [resume_status]
       properties:
         resume_status: { $ref: "#/components/schemas/ResumeStatus" }
+        parsed: { $ref: "#/components/schemas/ResumeParsed" }
+
+    ResumeParsed:
+      type: object
+      description: Что нашлось в резюме; поля, которых не нашлось, — null или пустой список.
+      required: [full_name, target_title, target_grade, city, salary_from, work_formats, skills]
+      properties:
+        full_name: { type: [string, "null"] }
+        target_title: { type: [string, "null"] }
+        target_grade:
+          type: [string, "null"]
+          enum: [junior, middle, senior, null]
+        city: { type: [string, "null"] }
+        salary_from: { type: [integer, "null"] }
+        work_formats:
+          type: array
+          items: { $ref: "#/components/schemas/WorkFormat" }
+        skills:
+          type: array
+          items: { type: string }
 
     GithubConnectRequest:
       type: object
@@ -1254,11 +1318,12 @@ components:
 
     Application:
       type: object
-      required: [id, vacancy, status, letter_id, created_at, updated_at]
+      required: [id, vacancy, status, position, letter_id, created_at, updated_at]
       properties:
         id: { type: integer, format: int64 }
         vacancy: { $ref: "#/components/schemas/Vacancy" }
         status: { $ref: "#/components/schemas/ApplicationStatus" }
+        position: { type: integer, minimum: 0, description: "Место карточки в колонке, 0 — сверху" }
         letter_id: { type: [integer, "null"], format: int64 }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
@@ -1283,6 +1348,10 @@ components:
       required: [status]
       properties:
         status: { $ref: "#/components/schemas/ApplicationStatus" }
+        position:
+          type: integer
+          minimum: 0
+          description: Куда поставить карточку в колонке status (0 — сверху). Без поля — в конец колонки.
 
     CollectionRun:
       type: object

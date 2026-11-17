@@ -37,11 +37,12 @@ export function renderRegisterPage() {
           id: "register-name",
           name: "name",
           type: "text",
-          label: "Имя",
+          label: "Имя (необязательно)",
           iconName: "user",
           autocomplete: "name",
-          placeholder: "Иван Петров",
+          placeholder: "Соискатель",
           testId: "register-name",
+          required: false,
         })}
         ${passwordField({ id: "register-password", autocomplete: "new-password", testId: "register-password" })}
         ${submitButton("Зарегистрироваться", "register-submit")}
@@ -77,8 +78,8 @@ export function renderRegisterPage() {
         password: password.input.value,
         full_name: name.input.value.trim(),
       });
-      const resumeStatus = await startSession(response);
-      navigate(resumeStatus === "none" ? "/onboarding" : "/feed");
+      const onboarding = await startSession(response);
+      navigate(onboarding ? "/onboarding" : "/feed");
     } catch (error) {
       if (error instanceof ApiError && error.status === 409 && error.code === "email_taken") {
         showEmailTaken(email, emailLink, error.message);

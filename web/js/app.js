@@ -11,6 +11,7 @@ import { renderVacancyPage } from "./pages/vacancy/page.js";
 import { getMe } from "./api/index.js";
 import { getPathname, navigate, subscribe } from "./core/router.js";
 import {
+  getProfile,
   getStoredUser,
   hasSession,
   onAccessTokenCleared,
@@ -133,13 +134,21 @@ onAccessTokenCleared(() => {
   }
 });
 
+// Профиль берём из базы при каждом запуске: localStorage — только кэш.
+// Направления (tags) сервер пока не хранит, их оставляем из кэша.
+async function refreshMe() {
+  try {
+    const me = await getMe();
+    setStoredUser({ id: me.id, email: me.email, full_name: me.full_name, is_admin: me.is_admin });
+    const tags = getProfile()?.tags;
+    setProfile(tags ? { ...me.profile, tags } : me.profile);
+  } catch {}
+}
+
 async function boot() {
-  if (hasSession() && !getStoredUser()) {
-    try {
-      const me = await getMe();
-      setStoredUser({ id: me.id, email: me.email, full_name: me.full_name, is_admin: me.is_admin });
-      setProfile(me.profile);
-    } catch {}
+  if (hasSession()) {
+    if (getStoredUser()) void refreshMe();
+    else await refreshMe();
   }
   route();
 }

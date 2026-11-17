@@ -3,6 +3,8 @@ import { getProfile, getStoredUser, setProfile } from "../core/session.js";
 import { clone } from "./util.js";
 
 const DEMO_USER = { id: 42, email: "ivan@mail.ru", full_name: "Иван Петров", is_admin: false };
+// Как на сервере: имя, если при регистрации его не указали.
+const DEFAULT_FULL_NAME = "Соискатель";
 const TAKEN_EMAILS = new Set(["taken@mail.ru", "taken@example.com"]);
 const SESSION_DAYS = 7;
 
@@ -39,7 +41,7 @@ export function register(body) {
   const email = normalizeEmail(body.email);
   if (!email) throw new ApiError(400, "invalid_request", "Укажите почту");
   if (TAKEN_EMAILS.has(email)) throw new ApiError(409, "email_taken", "Почта уже занята");
-  const fullName = String(body.full_name ?? "").trim() || DEMO_USER.full_name;
+  const fullName = String(body.full_name ?? "").trim() || DEFAULT_FULL_NAME;
   return session({ ...DEMO_USER, email, full_name: fullName });
 }
 
@@ -48,7 +50,9 @@ export function me() {
 }
 
 export function patchMe(body) {
-  const profile = { ...currentProfile(), ...body };
+  const { skill_names: skillNames, ...rest } = body ?? {};
+  const profile = { ...currentProfile(), ...rest };
+  if (Array.isArray(skillNames)) profile.skills = skillNames.map((name, index) => ({ id: index + 1, name }));
   setProfile(profile);
   return { ...(getStoredUser() ?? DEMO_USER), profile };
 }

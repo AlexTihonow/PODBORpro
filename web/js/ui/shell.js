@@ -10,7 +10,7 @@ const NAV_ITEMS = [
 
 export function mountShell(active, content) {
   const root = document.getElementById("root");
-  const user = getStoredUser() ?? { full_name: "Профиль" };
+  const user = getStoredUser() ?? { full_name: "Соискатель" };
 
   root.innerHTML = `
     <div class="app">

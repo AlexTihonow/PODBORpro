@@ -35,9 +35,9 @@ export function authLayout({ title, subtitle, form, footer }) {
   </div>`;
 }
 
-export function textField({ id, name, type, label, iconName, autocomplete, placeholder, value = "", testId, extra = "" }) {
+export function textField({ id, name, type, label, iconName, autocomplete, placeholder, value = "", testId, extra = "", required = true }) {
   return `<label class="field" for="${id}">
-    <span class="field__label">${esc(label)} <span class="field__required">*</span></span>
+    <span class="field__label">${esc(label)}${required ? ' <span class="field__required">*</span>' : ""}</span>
     <span class="input-wrap">
       ${icon(iconName, "input-wrap__icon")}
       <input class="input input--icon" id="${id}" name="${name}" type="${type}" autocomplete="${autocomplete}" placeholder="${esc(placeholder)}" value="${esc(value)}" data-testid="${testId}" />
@@ -77,8 +77,9 @@ export const validators = {
     if (value.length < 8) return "Пароль должен быть не короче 8 символов";
     return null;
   },
-  name(value) {
-    return value.trim() ? null : "Укажите имя";
+  // Имя необязательно: пустое сервер заменит на «Соискатель».
+  name() {
+    return null;
   },
 };
 
@@ -144,8 +145,15 @@ export async function startSession(response) {
   try {
     const me = await getMe();
     setProfile(me.profile);
-    return me.profile?.resume_status ?? null;
+    return needsOnboarding(me.profile);
   } catch {
-    return null;
+    return false;
   }
+}
+
+// Онбординг нужен, пока в профиле нет ни резюме, ни желаемой должности:
+// загрузку резюме сервер ещё не принимает, а должность онбординг сохраняет в базу.
+export function needsOnboarding(profile) {
+  if (!profile) return false;
+  return (profile.resume_status ?? "none") === "none" && !profile.target_title;
 }

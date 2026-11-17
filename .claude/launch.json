@@ -10,6 +10,19 @@
       "port": 5173
     },
     {
+      "name": "web-api",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "web/dev-server.mjs"
+      ],
+      "port": 5175,
+      "env": {
+        "PORT": "5175",
+        "API_URL": "http://localhost:8080"
+      },
+      "autoPort": false
+    },
+    {
       "name": "server",
       "runtimeExecutable": "go",
       "runtimeArgs": [
@@ -20,7 +33,7 @@
       ],
       "port": 8080,
       "env": {
-        "DATABASE_URL": "postgres://podbor:podbor@localhost:5432/podbor?sslmode=disable",
+        "DATABASE_URL": "postgres://podbor:podbor@localhost:5433/podbor?sslmode=disable",
         "JWT_SECRET": "dev-secret-dev-secret-dev-secret-dev",
         "WEB_DIR": "../web",
         "HTTP_ADDR": ":8080"

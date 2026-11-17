@@ -37,7 +37,8 @@ func newDBServer(t *testing.T) *httptest.Server {
 	st := store.New(pool)
 	tokens, err := auth.NewTokens(testSecret)
 	must(t, err)
-	h, err := New(Config{Auth: auth.NewService(st, tokens), Tokens: tokens, Store: st, WebDir: t.TempDir(), Log: discardLog()})
+	h, err := New(Config{Auth: auth.NewService(st, tokens), Tokens: tokens, Store: st, WebDir: t.TempDir(), Log: discardLog(),
+		Resume: ResumeConfig{Store: st}, Applications: ApplicationsConfig{Store: st, Vacancies: testCatalog{}}})
 	must(t, err)
 	srv := httptest.NewServer(h)
 	t.Cleanup(srv.Close)
@@ -126,12 +127,31 @@ func TestRegisterAndLogin(t *testing.T) {
 	}
 }
 
+func TestRegisterDefaultName(t *testing.T) {
+	srv := newDBServer(t)
+	for name, body := range map[string]string{
+		"пустое имя": `{"email": "noname1@mail.ru", "password": "s3cret-pass", "full_name": "   "}`,
+		"без имени":  `{"email": "noname2@mail.ru", "password": "s3cret-pass"}`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			resp, b := do(t, srv, "POST", "/api/v1/auth/register", "", body)
+			if resp.StatusCode != 201 {
+				t.Fatalf("%d %s", resp.StatusCode, b)
+			}
+			var reg api.TokenResponse
+			must(t, json.Unmarshal(b, &reg))
+			if reg.User.FullName != "Соискатель" {
+				t.Fatalf("имя %q", reg.User.FullName)
+			}
+		})
+	}
+}
+
 func TestRegisterValidation(t *testing.T) {
 	srv := newDBServer(t)
 	cases := map[string]string{
 		"неверная почта":  `{"email": "ivan", "password": "s3cret-pass", "full_name": "Иван"}`,
 		"короткий пароль": `{"email": "a@mail.ru", "password": "1234567", "full_name": "Иван"}`,
-		"пустое имя":      `{"email": "a@mail.ru", "password": "s3cret-pass", "full_name": "   "}`,
 		"не JSON":         `{"email":`,
 		"пустое тело":     ``,
 	}
@@ -243,5 +263,32 @@ func TestProfileSkillNames(t *testing.T) {
 	resp, body = do(t, srv, "PATCH", "/api/v1/me", tok, `{"skill_names": ["`+strings.Repeat("я", 61)+`"]}`)
 	if resp.StatusCode != 400 || errorCode(t, body) != "validation_error" {
 		t.Fatalf("длинный навык: %d %s", resp.StatusCode, body)
+	}
+}
+
+func TestResumeSavedToDB(t *testing.T) {
+	srv := newDBServer(t)
+	data, err := os.ReadFile("../resume/testdata/resume.docx")
+	must(t, err)
+
+	// Без своего имени — имя берётся из резюме.
+	tok := register(t, srv, `{"email": "anna@mail.ru", "password": "s3cret-pass"}`)
+	if resp, body := uploadFile(t, srv, tok, "cv.docx", data); resp.StatusCode != 200 {
+		t.Fatalf("%d %s", resp.StatusCode, body)
+	}
+	var me api.Me
+	_, body := do(t, srv, "GET", "/api/v1/me", tok, "")
+	must(t, json.Unmarshal(body, &me))
+	if me.FullName != "Смирнова Анна Сергеевна" || me.Profile.ResumeStatus != api.ResumeStatusReady {
+		t.Fatalf("после загрузки: %s", body)
+	}
+
+	// Своё имя резюме не перезаписывает.
+	tok = register(t, srv, `{"email": "own@mail.ru", "password": "s3cret-pass", "full_name": "Своё Имя"}`)
+	uploadFile(t, srv, tok, "cv.docx", data)
+	_, body = do(t, srv, "GET", "/api/v1/me", tok, "")
+	must(t, json.Unmarshal(body, &me))
+	if me.FullName != "Своё Имя" {
+		t.Fatalf("имя перезаписано: %s", body)
 	}
 }

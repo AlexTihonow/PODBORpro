@@ -1,4 +1,4 @@
-import { getFeed } from "../../api/index.js";
+import { createApplication, getFeed } from "../../api/index.js";
 import { getPathname, navigate, withBase } from "../../core/router.js";
 import { mountShell } from "../../ui/shell.js";
 import {
@@ -80,6 +80,29 @@ export async function renderFeedPage(isCurrent) {
       ${items.map((item, index) => vacancyCard(item, index)).join("")}
     </div>
   `;
+  bindDraftTracking(main, items);
+}
+
+// Клик по вакансии в ленте кладёт её в «Черновик» на доске откликов (сервер
+// хранит доску в базе). Если отклик уже есть, сервер отвечает 409 — это не ошибка:
+// карточка остаётся в той колонке, куда её положил пользователь.
+function bindDraftTracking(main, items) {
+  const ids = new Set(items.map((item) => String(item.vacancy.id)));
+  const added = new Set();
+  const track = (event) => {
+    const link = event.target.closest(".vacancy-card a[data-to^='/vacancies/']");
+    const id = link?.dataset.to.split("/").pop();
+    if (!id || !ids.has(id) || added.has(id)) return;
+    added.add(id);
+    createApplication(Number(id)).catch((error) => {
+      if (error.code !== "application_exists") {
+        added.delete(id);
+        console.warn("Не удалось добавить вакансию в черновики", error);
+      }
+    });
+  };
+  main.addEventListener("click", track, true);
+  main.addEventListener("auxclick", track, true);
 }
 
 function hero(feed) {

@@ -23,6 +23,12 @@ export const login = (email, password) => request("POST", "/auth/login", { email
 export const register = (body) => request("POST", "/auth/register", body);
 export const getMe = () => request("GET", "/me");
 export const patchMe = (body) => request("PATCH", "/me", body);
+// Резюме разбирается на сервере правилами (без нейросети); ответ — resume_status и parsed.
+export function uploadResume(file) {
+  const form = new FormData();
+  form.append("file", file, file.name);
+  return request("POST", "/portfolio/resume", form);
+}
 // Лента и вакансии на сервере пока заглушки из OpenAPI (заголовок X-Stub) с
 // выдуманной вакансией №4821, которой нет в каталоге. Пока так, берём их из
 // того же каталога data/vacancies.json, по которому сервер составляет письма.
@@ -38,8 +44,14 @@ async function catalogRequest(path) {
 
 export const getFeed = (params = {}) => catalogRequest(withQuery("/feed", params, ["city", "page", "per_page"]));
 export const getVacancy = (id) => catalogRequest(`/vacancies/${id}`);
-export const listApplications = (params = {}) =>
-  request("GET", withQuery("/applications", params, ["status", "page", "per_page"]));
+// Доска откликов: на сервере хранится в базе, в демо-режиме — в localStorage.
+export const listApplications = (params = {}) => request("GET", withQuery("/applications", params, ["status"]));
+export const createApplication = (vacancyId) => request("POST", "/applications", { vacancy_id: vacancyId });
+// position — место в колонке status (0 — сверху); без него карточка встаёт в конец колонки.
+export const moveApplication = (id, status, position) =>
+  request("PATCH", `/applications/${id}`, position === undefined ? { status } : { status, position });
+export const deleteApplication = (id) => request("DELETE", `/applications/${id}`);
+export const clearApplications = (status) => request("DELETE", withQuery("/applications", { status }, ["status"]));
 export const createLetter = (vacancyId, tone) =>
   request("POST", `/vacancies/${vacancyId}/letters`, tone ? { tone } : undefined);
 

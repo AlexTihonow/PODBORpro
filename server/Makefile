@@ -13,10 +13,10 @@ test: api/types.gen.go
 	go test ./...
 
 test-db: api/types.gen.go
-	TEST_DATABASE_URL=postgres://podbor:podbor@localhost:5432/podbor?sslmode=disable go test ./...
+	TEST_DATABASE_URL=postgres://podbor:podbor@localhost:5433/podbor_test?sslmode=disable go test ./...
 
 run: api/types.gen.go
-	DATABASE_URL=postgres://podbor:podbor@localhost:5432/podbor?sslmode=disable \
+	DATABASE_URL=postgres://podbor:podbor@localhost:5433/podbor?sslmode=disable \
 	JWT_SECRET=dev-secret-dev-secret-dev-secret-dev \
 	WEB_DIR=../web \
 	go run ./cmd/server

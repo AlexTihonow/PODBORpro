@@ -11,6 +11,8 @@ const routes = [
   ["POST", /^\/auth\/register$/, (ctx) => account.register(ctx.body)],
   ["GET", /^\/me$/, () => account.me()],
   ["PATCH", /^\/me$/, (ctx) => account.patchMe(ctx.body)],
+  // В демо файл никуда не уходит: разбор резюме есть только на сервере.
+  ["POST", /^\/portfolio\/resume$/, () => ({ resume_status: "ready", parsed: null })],
   ["GET", /^\/health$/, () => ({ status: "ok", services: { db: "ok", ml: "ok" } })],
   ["GET", /^\/feed$/, (ctx) => buildFeed(account.currentProfile(), ctx.query.get("city"))],
   ["GET", /^\/vacancies\/(\d+)$/, (ctx) => vacancyDetails(ctx.id)],
@@ -21,7 +23,10 @@ const routes = [
   ["PATCH", /^\/letters\/(\d+)$/, (ctx) => letters.patchLetter(ctx.id, ctx.body)],
   ["GET", /^\/letters\/(\d+)\/versions$/, (ctx) => letters.listVersions(ctx.id)],
   ["GET", /^\/applications$/, (ctx) => applications.listApplications(ctx.query)],
+  ["POST", /^\/applications$/, (ctx) => applications.createApplication(ctx.body)],
+  ["DELETE", /^\/applications$/, (ctx) => applications.deleteApplications(ctx.query)],
   ["PATCH", /^\/applications\/(\d+)$/, (ctx) => applications.patchApplication(ctx.id, ctx.body)],
+  ["DELETE", /^\/applications\/(\d+)$/, (ctx) => applications.deleteApplication(ctx.id)],
 ];
 
 export async function requestDemo(method, path, body) {

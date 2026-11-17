@@ -37,6 +37,8 @@ var requiredOperations = []string{
 	"GET /applications",
 	"POST /applications",
 	"PATCH /applications/{id}",
+	"DELETE /applications",
+	"DELETE /applications/{id}",
 	"GET /admin/collection-runs",
 	"GET /admin/data-quality",
 }

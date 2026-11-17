@@ -41,6 +41,9 @@ type Service struct {
 	tokens *Tokens
 }
 
+// DefaultFullName — имя пользователя, если при регистрации его не указали.
+const DefaultFullName = "Соискатель"
+
 func NewService(s *store.Store, t *Tokens) *Service {
 	return &Service{store: s, tokens: t}
 }
@@ -54,7 +57,7 @@ func (s *Service) Register(ctx context.Context, email, password, fullName string
 		return Session{}, err
 	}
 	if fullName == "" {
-		return Session{}, &ValidationError{"Укажите имя"}
+		fullName = DefaultFullName
 	}
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcryptCost)
 	if err != nil {

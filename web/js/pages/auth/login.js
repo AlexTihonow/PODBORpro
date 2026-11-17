@@ -59,8 +59,8 @@ export function renderLoginPage() {
     setLoading(submit, true, "Входим…");
     try {
       const response = await login(email.input.value.trim(), password.input.value);
-      const resumeStatus = await startSession(response);
-      navigate(resumeStatus === "none" ? "/onboarding" : from || "/feed");
+      const onboarding = await startSession(response);
+      navigate(onboarding ? "/onboarding" : from || "/feed");
     } catch (error) {
       formError.innerHTML = apiErrorAlert(error, "login-error");
       if (error instanceof ApiError && error.status === 401) {

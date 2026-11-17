@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -19,6 +20,7 @@ import (
 var ErrNotFound = errors.New("catalog: вакансия не найдена")
 
 type Skill struct {
+	ID   int64  `json:"id"`
 	Name string `json:"name"`
 }
 
@@ -31,6 +33,13 @@ type Vacancy struct {
 	WorkFormat  *string `json:"work_format"`
 	Skills      []Skill `json:"skills"`
 	Description string  `json:"description"`
+
+	SalaryFrom  *int    `json:"salary_from"`
+	SalaryTo    *int    `json:"salary_to"`
+	Currency    *string `json:"currency"`
+	Source      string  `json:"source"`
+	URL         string  `json:"url"`
+	PublishedAt string  `json:"published_at"`
 }
 
 // SkillNames — названия навыков; скрепер иногда кладёт целый список
@@ -76,6 +85,40 @@ func (c *Catalog) Find(_ context.Context, id int64) (Vacancy, error) {
 		return Vacancy{}, ErrNotFound
 	}
 	return v, nil
+}
+
+// SkillNames — навыки, которые встречаются хотя бы в двух вакансиях каталога
+// (словарь для разбора резюме). Ошибку чтения каталога не считаем сбоем: словаря просто нет.
+func (c *Catalog) SkillNames(_ context.Context) []string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if err := c.refresh(); err != nil {
+		return nil
+	}
+	count := map[string]int{}
+	spelling := map[string]string{}
+	for _, v := range c.byID {
+		seen := map[string]bool{}
+		for _, name := range v.SkillNames() {
+			k := strings.ToLower(name)
+			if seen[k] {
+				continue
+			}
+			seen[k] = true
+			count[k]++
+			if _, ok := spelling[k]; !ok {
+				spelling[k] = name
+			}
+		}
+	}
+	var out []string
+	for k, n := range count {
+		if n >= 2 {
+			out = append(out, spelling[k])
+		}
+	}
+	sort.Strings(out)
+	return out
 }
 
 func (c *Catalog) refresh() error {

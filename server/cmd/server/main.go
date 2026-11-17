@@ -82,6 +82,7 @@ func run(log *slog.Logger, migrateOnly bool) error {
 	if err != nil {
 		return err
 	}
+	vacancies := catalog.New(cmp.Or(os.Getenv("VACANCIES_FILE"), filepath.Join(webDir, "data", "vacancies.json")))
 	handler, err := httpapi.New(httpapi.Config{
 		Auth:        auth.NewService(st, tokens),
 		Tokens:      tokens,
@@ -89,6 +90,11 @@ func run(log *slog.Logger, migrateOnly bool) error {
 		WebDir:      webDir,
 		Log:         log,
 		CoverLetter: letters,
+		Resume: httpapi.ResumeConfig{
+			Store:  st,
+			Skills: vacancies.SkillNames,
+		},
+		Applications: httpapi.ApplicationsConfig{Store: st, Vacancies: vacancies},
 	})
 	if err != nil {
 		return err

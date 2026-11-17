@@ -151,6 +151,14 @@ func TestEveryOperationResponds(t *testing.T) {
 			if strings.HasPrefix(path, "/vacancies/{id}/cover-letter") {
 				continue
 			}
+			// Загрузка резюме принимает файл формой — проверяется в resume_test.go.
+			if path == "/portfolio/resume" {
+				continue
+			}
+			// Доска откликов хранится в базе — проверяется в applications_test.go.
+			if strings.HasPrefix(path, "/applications") {
+				continue
+			}
 			url := api.BasePath + strings.ReplaceAll(path, "{id}", "1")
 			resp, body := do(t, srv, method, url, adminTok, "{}")
 			if resp.StatusCode < 200 || resp.StatusCode >= 300 {
