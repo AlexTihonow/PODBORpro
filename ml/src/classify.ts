@@ -8,7 +8,7 @@ import {
   workFormatQuestion,
 } from "./questions.ts";
 import { englishRule, gradeFromTitle, gradesForExperience, workFormatFromSource } from "./rules.ts";
-import { tagFromRules } from "./tag-rules.ts";
+import { analyze, attributes, decide, dropAncestors, type Analysis } from "./ru/engine.ts";
 import { childrenAt, labelFor, TAG_ROOT } from "./tags.ts";
 import type { Classification, Label, LabelSource, TagAnswer, VacancyItem } from "./types.ts";
 
@@ -28,18 +28,14 @@ export async function classify(model: Model, item: VacancyItem): Promise<Classif
   const workFormat = workFormatFromSource(item.work_format_raw);
   const english = englishRule(item.text, skills);
 
-  const ruleTag = tagFromRules(item.title, skills);
   const questions: QuestionSet = {};
-  if (!ruleTag) questions.tag = tagQuestion([])!;
   if (!grade) questions.grade = gradeQuestion(gradesForExperience(item.experience) ?? undefined);
   if (!workFormat) questions.work_format = workFormatQuestion;
   if ("ask" in english) questions.english = englishQuestion;
 
   const answers = Object.keys(questions).length > 0 ? (await model.systemOne(state, questions)).answers : {};
-  const tagState = { title: item.title, skills: skills.join(", ") };
-  const tags = ruleTag
-    ? await fromRule(model, tagState, ruleTag)
-    : await descend(model, tagState, [], answers.tag as ChoiceAnswer, 1);
+  const analysis = analyze({ title: item.title, skills, text: item.text });
+  const tags = withAttributes(analysis, await walk(model, analysis, [], 1, "rule"));
 
   const result: Classification = {
     id: item.id,
@@ -55,36 +51,52 @@ export async function classify(model: Model, item: VacancyItem): Promise<Classif
   return result;
 }
 
-async function fromRule(model: Model, state: unknown, path: string[]): Promise<TagAnswer[]> {
-  if (!childrenAt(path)) return finish(path, RULE_CONFIDENCE, "leaf", "rule");
-  const { answers } = await model.systemOne(state, { tag: tagQuestion(path)! });
-  return descend(model, state, path, answers.tag as ChoiceAnswer, RULE_CONFIDENCE);
+// Laya плохо понимает русский, поэтому получает английский пересказ вакансии,
+// собранный из найденных понятий, а не исходный текст.
+export function englishState(analysis: Analysis) {
+  const { title, skills, mentions } = analysis.brief;
+  return { title, skills: skills.join(", "), mentions: mentions.join(", ") };
 }
 
-async function descend(
+async function walk(
   model: Model,
-  state: unknown,
-  start: string[],
-  first: ChoiceAnswer,
-  startConfidence: number,
+  analysis: Analysis,
+  path: string[],
+  confidence: number,
+  source: LabelSource,
 ): Promise<TagAnswer[]> {
-  const path = [...start];
-  let answer = first;
-  let confidence = startConfidence;
-  const source = start.length > 0 ? "rule" : "laya";
+  if (path.length > 0 && !childrenAt(path)) return finish(path, confidence, "leaf", source);
 
-  while (true) {
-    if (answer.choice === OTHER) return finish(path, confidence, "other", source);
-    if (answer.answer_confidence < TAG_THRESHOLD) return finish(path, confidence, "low_confidence", source);
-
-    path.push(answer.choice);
-    confidence = answer.answer_confidence;
-    const next = tagQuestion(path);
-    if (!next) return finish(path, confidence, "leaf", "laya");
-
-    const { answers } = await model.systemOne(state, { tag: next });
-    answer = answers.tag as ChoiceAnswer;
+  const decision = decide(analysis, path);
+  switch (decision.kind) {
+    case "non_it":
+      return [];
+    case "stop":
+      return finish(path, confidence, "no_evidence", source);
+    case "pick": {
+      const tags: TagAnswer[] = [];
+      for (const pick of decision.picks) {
+        tags.push(...(await walk(model, analysis, [...path, pick.key], Math.min(confidence, pick.confidence), source)));
+      }
+      return tags;
+    }
+    case "ask": {
+      const question = tagQuestion(path, decision.candidates)!;
+      const { answers } = await model.systemOne(englishState(analysis), { tag: question });
+      const answer = answers.tag as ChoiceAnswer;
+      if (answer.choice === OTHER) return finish(path, confidence, "other", source);
+      if (answer.answer_confidence < TAG_THRESHOLD) return finish(path, confidence, "low_confidence", source);
+      return walk(model, analysis, [...path, answer.choice], answer.answer_confidence, "laya");
+    }
   }
+}
+
+// Добавляет теги-признаки (AI-интеграция, AI-assisted и т. п.) к основным тегам.
+function withAttributes(analysis: Analysis, tags: TagAnswer[]): TagAnswer[] {
+  if (decide(analysis, []).kind === "non_it") return tags;
+  const all = [...tags, ...attributes(analysis).flatMap((path) => finish(path, RULE_CONFIDENCE, "leaf", "rule"))];
+  const keep = new Set(dropAncestors(all.map((t) => t.path)));
+  return all.filter((t) => keep.delete(t.path));
 }
 
 function finish(path: string[], confidence: number, stopped: TagAnswer["stopped"], source: LabelSource): TagAnswer[] {

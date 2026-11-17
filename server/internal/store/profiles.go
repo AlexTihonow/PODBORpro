@@ -12,21 +12,27 @@ import (
 
 func (s *Store) GetMe(ctx context.Context, userID int64) (api.Me, error) {
 	var m api.Me
+	var skillNames []string
 	p := &m.Profile
 	err := s.db.QueryRow(ctx,
 		`SELECT u.id, u.email, u.full_name, u.is_admin,
-		        p.target_title, p.target_grade, p.cities, p.work_formats, p.salary_from, p.tone, p.resume_status
+		        p.target_title, p.target_grade, p.cities, p.work_formats, p.salary_from, p.tone, p.resume_status,
+		        p.skill_names
 		   FROM users u JOIN profiles p ON p.user_id = u.id
 		  WHERE u.id = $1`, userID,
 	).Scan(&m.Id, &m.Email, &m.FullName, &m.IsAdmin,
-		&p.TargetTitle, &p.TargetGrade, &p.Cities, &p.WorkFormats, &p.SalaryFrom, &p.Tone, &p.ResumeStatus)
+		&p.TargetTitle, &p.TargetGrade, &p.Cities, &p.WorkFormats, &p.SalaryFrom, &p.Tone, &p.ResumeStatus,
+		&skillNames)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return api.Me{}, ErrNotFound
 	}
 	if err != nil {
 		return api.Me{}, fmt.Errorf("get me: %w", err)
 	}
-	p.Skills = []api.Skill{}
+	p.Skills = make([]api.Skill, 0, len(skillNames))
+	for i, name := range skillNames {
+		p.Skills = append(p.Skills, api.Skill{Id: int64(i + 1), Name: name})
+	}
 	return m, nil
 }
 
@@ -48,9 +54,10 @@ func (s *Store) UpdateMe(ctx context.Context, userID int64, req api.PatchMeReque
 			        work_formats = COALESCE($5, work_formats),
 			        salary_from  = COALESCE($6, salary_from),
 			        tone         = COALESCE($7, tone),
+			        skill_names  = COALESCE($8, skill_names),
 			        updated_at   = now()
 			  WHERE user_id = $1`,
-			userID, req.TargetTitle, req.TargetGrade, req.Cities, req.WorkFormats, req.SalaryFrom, req.Tone)
+			userID, req.TargetTitle, req.TargetGrade, req.Cities, req.WorkFormats, req.SalaryFrom, req.Tone, req.SkillNames)
 		if err != nil {
 			return fmt.Errorf("update profile: %w", err)
 		}

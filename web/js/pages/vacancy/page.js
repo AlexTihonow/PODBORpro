@@ -1,4 +1,4 @@
-import { createLetter, getCachedFeedItem, getVacancy } from "../../api/index.js";
+import { getCachedFeedItem, getVacancy } from "../../api/index.js";
 import { getPathname, navigate, withBase } from "../../core/router.js";
 import { mountShell } from "../../ui/shell.js";
 import {
@@ -98,15 +98,8 @@ export async function renderVacancyPage(id, isCurrent) {
 
 function bindLetterButton(main, vacancyId) {
   const button = main.querySelector("[data-letter]");
-  button?.addEventListener("click", async () => {
-    button.disabled = true;
-    try {
-      const letter = await createLetter(vacancyId);
-      navigate(`/letters/${letter.id}`);
-    } catch {
-      button.disabled = false;
-    }
-  });
+  // Письмо составляет сервер через языковую модель: POST /vacancies/{id}/cover-letter.
+  button?.addEventListener("click", () => navigate(`/vacancies/${vacancyId}/letter`));
 }
 
 function skeleton() {

@@ -193,7 +193,7 @@ components:
         path: { type: string }
         label: { type: string }
         confidence: { type: number }
-        stopped: { type: string, enum: [leaf, low_confidence, other] }
+        stopped: { type: string, enum: [leaf, low_confidence, other, no_evidence] }
         source: { type: string, enum: [rule, laya] }
 
     ClassifyResponse:

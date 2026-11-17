@@ -54,11 +54,32 @@ const (
 	maxCities    = 10
 	maxCityLen   = 100
 	maxSalaryRub = 10_000_000
+	maxSkills    = 50
+	maxSkillLen  = 60
 )
+
+// normalizeSkillNames убирает пробелы, пустые строки и повторы без учёта регистра.
+func normalizeSkillNames(names []string) []string {
+	out := make([]string, 0, len(names))
+	seen := map[string]bool{}
+	for _, n := range names {
+		n = strings.Join(strings.Fields(n), " ")
+		key := strings.ToLower(n)
+		if n == "" || seen[key] {
+			continue
+		}
+		seen[key] = true
+		out = append(out, n)
+	}
+	return out
+}
 
 func validatePatchMe(req *api.PatchMeRequest) string {
 	if req.FullName != nil {
 		*req.FullName = strings.TrimSpace(*req.FullName)
+	}
+	if req.SkillNames != nil {
+		*req.SkillNames = normalizeSkillNames(*req.SkillNames)
 	}
 	invalidFormat := req.WorkFormats != nil && slices.ContainsFunc(*req.WorkFormats, func(f api.WorkFormat) bool {
 		return !slices.Contains([]api.WorkFormat{api.WorkFormatOffice, api.WorkFormatRemote, api.WorkFormatHybrid}, f)
@@ -74,6 +95,8 @@ func validatePatchMe(req *api.PatchMeRequest) string {
 		{req.Cities != nil && slices.ContainsFunc(*req.Cities, func(c string) bool { return utf8.RuneCountInString(c) > maxCityLen }), "Название города — не длиннее 100 символов"},
 		{invalidFormat, "Формат работы: office, remote или hybrid"},
 		{req.SalaryFrom != nil && (*req.SalaryFrom < 0 || *req.SalaryFrom > maxSalaryRub), "Зарплата — от 0 до 10 000 000"},
+		{req.SkillNames != nil && len(*req.SkillNames) > maxSkills, "Можно отметить не больше 50 навыков"},
+		{req.SkillNames != nil && slices.ContainsFunc(*req.SkillNames, func(n string) bool { return utf8.RuneCountInString(n) > maxSkillLen }), "Название навыка — не длиннее 60 символов"},
 		{req.Tone != nil && !slices.Contains([]api.Tone{api.Formal, api.Neutral, api.Friendly}, *req.Tone), "Тон: formal, neutral или friendly"},
 	}
 	for _, rule := range rules {

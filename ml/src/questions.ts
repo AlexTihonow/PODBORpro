@@ -29,11 +29,14 @@ export const englishQuestion: NoulQuestion = {
   instructions: "Does this vacancy require the candidate to know English?",
 };
 
-export function tagQuestion(path: string[]): ChoiceQuestion | null {
+// `only` сужает выбор до веток, между которыми колеблются правила.
+export function tagQuestion(path: string[], only?: string[]): ChoiceQuestion | null {
   const children = childrenAt(path);
   if (!children) return null;
   const criteria: Record<string, string> = {};
-  for (const [key, node] of Object.entries(children) as [string, TagNode][]) criteria[key] = node.hint;
+  for (const [key, node] of Object.entries(children) as [string, TagNode][]) {
+    if (!only || only.includes(key)) criteria[key] = node.hint;
+  }
   criteria[OTHER] = "none of the above";
   const scope = path.length === 0 ? "this IT vacancy" : `this ${path.join(" ")} vacancy`;
   return { type: "choice", instructions: `Which specialization best describes ${scope}?`, criteria };

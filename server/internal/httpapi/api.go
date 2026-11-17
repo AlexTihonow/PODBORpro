@@ -23,6 +23,8 @@ type Config struct {
 	Store  Store
 	WebDir string
 	Log    *slog.Logger
+
+	CoverLetter CoverLetterConfig
 }
 
 type API struct {
@@ -42,6 +44,8 @@ func New(cfg Config) (http.Handler, error) {
 	a.handle("POST", "/auth/login", public, a.login)
 	a.handle("GET", "/me", user, a.getMe)
 	a.handle("PATCH", "/me", user, a.patchMe)
+	a.handle("POST", "/vacancies/{id}/cover-letter", user, a.createCoverLetter)
+	a.handle("GET", "/vacancies/{id}/cover-letter/prompt", user, a.getCoverLetterPrompt)
 
 	if err := a.registerStubs(); err != nil {
 		return nil, fmt.Errorf("заглушки из описания: %w", err)

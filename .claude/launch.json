@@ -4,8 +4,28 @@
     {
       "name": "web",
       "runtimeExecutable": "node",
-      "runtimeArgs": ["web/dev-server.mjs"],
+      "runtimeArgs": [
+        "web/dev-server.mjs"
+      ],
       "port": 5173
+    },
+    {
+      "name": "server",
+      "runtimeExecutable": "go",
+      "runtimeArgs": [
+        "-C",
+        "server",
+        "run",
+        "./cmd/server"
+      ],
+      "port": 8080,
+      "env": {
+        "DATABASE_URL": "postgres://podbor:podbor@localhost:5432/podbor?sslmode=disable",
+        "JWT_SECRET": "dev-secret-dev-secret-dev-secret-dev",
+        "WEB_DIR": "../web",
+        "HTTP_ADDR": ":8080"
+      },
+      "autoPort": false
     }
   ]
 }

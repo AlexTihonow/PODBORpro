@@ -156,3 +156,87 @@
   font-size: 12px;
   color: var(--ink-subtle);
 }
+
+.editor-card__subtitle {
+  margin-top: 4px;
+  font-size: 14px;
+  color: var(--ink-muted);
+}
+
+.editor-textarea--letter {
+  min-height: 340px;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.editor-actions__buttons {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.editor-generating {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  color: var(--ink-muted);
+}
+
+.letter-facts {
+  margin: 14px 0 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--ink-muted);
+}
+
+.prompt-fallback {
+  max-width: 640px;
+  margin: 18px auto 0;
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.prompt-fallback__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 750;
+}
+
+.prompt-fallback__title .icon {
+  width: 17px;
+  height: 17px;
+  color: var(--violet);
+}
+
+.prompt-fallback__text p {
+  margin-top: 6px;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--ink-muted);
+}
+
+.prompt-fallback .btn {
+  align-self: flex-start;
+}
+
+.prompt-fallback__textarea {
+  min-height: 200px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.editor-status .prompt-fallback {
+  max-width: none;
+  margin: 12px 0 0;
+  box-shadow: none;
+}

@@ -318,7 +318,8 @@ export function renderOnboardingPage() {
       };
 
       try {
-        await patchMe(profile);
+        // Сервер хранит навыки по названию (skill_names): по ним составляется письмо.
+        await patchMe({ ...profile, skill_names: profile.skills.map((skill) => skill.name) });
       } catch {}
       setProfile(profile);
       navigate("/feed");

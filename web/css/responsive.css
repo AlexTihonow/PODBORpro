@@ -199,6 +199,10 @@
     width: 100%;
   }
 
+  .editor-actions__buttons {
+    flex-direction: column;
+  }
+
   .not-found__card {
     padding: 34px 22px;
   }

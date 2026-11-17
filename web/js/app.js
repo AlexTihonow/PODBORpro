@@ -3,6 +3,7 @@ import { renderLoginPage } from "./pages/auth/login.js";
 import { renderRegisterPage } from "./pages/auth/register.js";
 import { renderDevPage } from "./pages/dev/page.js";
 import { renderFeedPage } from "./pages/feed/page.js";
+import { renderCoverLetterPage } from "./pages/letter/generate.js";
 import { renderLetterPage } from "./pages/letter/page.js";
 import { renderNotFoundPage } from "./pages/not-found/page.js";
 import { renderOnboardingPage } from "./pages/onboarding/page.js";
@@ -75,6 +76,12 @@ async function route() {
     if (segments[0] === "feed") {
       document.title = "Лента — ПОДБОРпро";
       void renderFeedPage(isCurrent);
+      return;
+    }
+
+    if (segments[0] === "vacancies" && segments[1] && segments[2] === "letter") {
+      document.title = "Письмо к вакансии — ПОДБОРпро";
+      void renderCoverLetterPage(Number(segments[1]), isCurrent);
       return;
     }
 

@@ -19,7 +19,7 @@ export interface TagAnswer {
   path: string;
   label: string;
   confidence: number;
-  stopped: "leaf" | "low_confidence" | "other";
+  stopped: "leaf" | "low_confidence" | "other" | "no_evidence";
   source: LabelSource;
 }
 

@@ -33,5 +33,8 @@ export async function requestHttp(method, path, body, options = {}) {
     if (response.status === 401) clearAccessToken();
     throw new ApiError(response.status, error.code ?? "unknown", error.message ?? `Ошибка ${response.status}`);
   }
+  if (options.rejectStub && response.headers.get("X-Stub") === "true") {
+    throw new ApiError(response.status, "stub", "Сервер ответил заглушкой");
+  }
   return data;
 }

@@ -147,6 +147,10 @@ func TestEveryOperationResponds(t *testing.T) {
 			if method == "POST" && strings.HasPrefix(path, "/auth/") {
 				continue
 			}
+			// Письмо через модель зависит от каталога и ключа Z.AI — проверяется отдельно.
+			if strings.HasPrefix(path, "/vacancies/{id}/cover-letter") {
+				continue
+			}
 			url := api.BasePath + strings.ReplaceAll(path, "{id}", "1")
 			resp, body := do(t, srv, method, url, adminTok, "{}")
 			if resp.StatusCode < 200 || resp.StatusCode >= 300 {

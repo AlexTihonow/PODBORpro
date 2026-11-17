@@ -19,12 +19,19 @@ function noul(value: number): Answer {
   return { type: "noul", noul: value, answer_confidence: Math.max(value, 1 - value), rl_agent: { act_probability: 1 } };
 }
 
-function fakeModel(script: Record<string, Answer>[]): Model & { asked: string[][] } {
+function fakeModel(script: Record<string, Answer>[]): Model & { asked: string[][]; states: unknown[]; criteria: string[][] } {
   const asked: string[][] = [];
+  const states: unknown[] = [];
+  const criteria: string[][] = [];
   return {
     asked,
-    async systemOne(_state: unknown, questions: QuestionSet) {
+    states,
+    criteria,
+    async systemOne(state: unknown, questions: QuestionSet) {
       asked.push(Object.keys(questions));
+      states.push(state);
+      const tag = questions.tag as { criteria?: Record<string, string> } | undefined;
+      if (tag?.criteria) criteria.push(Object.keys(tag.criteria));
       return { answers: script[asked.length - 1] };
     },
   };
@@ -42,7 +49,7 @@ test("rules decide everything for a clear vacancy without calling the model", as
 
   assert.deepEqual(model.asked, []);
   assert.deepEqual(result.answers.tags, [
-    { path: "it/backend/go", label: "Backend / Go", confidence: 0.95, stopped: "leaf", source: "rule" },
+    { path: "it/backend/go", label: "Backend / Go", confidence: 0.97, stopped: "leaf", source: "rule" },
   ]);
   assert.equal(result.answers.grade.value, "senior");
   assert.equal(result.answers.work_format.value, "remote");
@@ -50,8 +57,8 @@ test("rules decide everything for a clear vacancy without calling the model", as
   assert.equal(result.needs_review, false);
 });
 
-test("rule picks the branch and Laya picks the leaf", async () => {
-  const model = fakeModel([{ tag: choice("python", 0.8) }]);
+test("without any stack evidence the tag stops at the branch instead of guessing", async () => {
+  const model = fakeModel([]);
   const result = await classify(model, {
     id: "hh:2",
     title: "Senior Backend Developer",
@@ -60,18 +67,39 @@ test("rule picks the branch and Laya picks the leaf", async () => {
     skills: [],
   });
 
+  assert.deepEqual(model.asked, []);
+  assert.deepEqual(result.answers.tags, [
+    { path: "it/backend", label: "Backend", confidence: 0.97, stopped: "no_evidence", source: "rule" },
+  ]);
+});
+
+test("close candidates go to Laya in English with a narrowed choice", async () => {
+  const model = fakeModel([{ tag: choice("manual", 0.8) }]);
+  const result = await classify(model, {
+    id: "hh:5",
+    title: "Старший тестировщик ПО",
+    text: "Автотесты и тест-кейсы.",
+    work_format_raw: "удалённо",
+    skills: [],
+  });
+
   assert.deepEqual(model.asked, [["tag"]]);
-  assert.equal(result.answers.tags[0].path, "it/backend/python");
+  assert.deepEqual(model.criteria, [["manual", "automation", "other"]]);
+  const state = model.states[0] as { title: string; mentions: string };
+  assert.match(state.title, /QA engineer/);
+  assert.doesNotMatch(JSON.stringify(state), /\p{Script=Cyrillic}/u);
+  assert.equal(result.answers.tags[0].path, "it/qa/manual");
   assert.equal(result.answers.tags[0].source, "laya");
 });
 
 test("model answers what rules cannot and low confidence asks for review", async () => {
   const model = fakeModel([
-    { tag: choice("qa", 0.3), grade: choice("middle", 0.4), work_format: choice("office", 0.7), english: noul(0.2) },
+    { grade: choice("middle", 0.4), work_format: choice("office", 0.7), english: noul(0.2) },
+    { tag: choice("qa", 0.3) },
   ]);
   const result = await classify(model, { id: "hh:3", title: "Специалист автоматизации", text: "Будет плюсом английский." });
 
-  assert.deepEqual(model.asked, [["tag", "grade", "work_format", "english"]]);
+  assert.deepEqual(model.asked, [["grade", "work_format", "english"], ["tag"]]);
   assert.deepEqual(result.answers.tags, []);
   assert.deepEqual(result.answers.grade, { value: "middle", confidence: 0.4, source: "laya" });
   assert.equal(result.answers.english.value, false);

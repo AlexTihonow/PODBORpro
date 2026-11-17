@@ -522,6 +522,95 @@ paths:
               schema: { $ref: "#/components/schemas/Error" }
               example: { error: { code: letter_service_unavailable, message: Составление писем временно недоступно } }
 
+  /vacancies/{id}/cover-letter:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    post:
+      tags: [letters]
+      operationId: generateCoverLetter
+      summary: Составить сопроводительное письмо через языковую модель (без сохранения)
+      description: |
+        Сервер сам берёт профиль вошедшего пользователя и вакансию из своего каталога
+        и вызывает Z.AI (модель `glm-4.7-flash`). Тело запроса не нужно и игнорируется.
+        Письмо **не сохраняется** — его можно отредактировать и скопировать на клиенте.
+        Синхронный запрос: ответ до `ZAI_TIMEOUT_SECONDS` (по умолчанию 60 с).
+
+        Модели передаются только: желаемая должность и уровень, навыки, города и форматы
+        работы из профиля, тон письма; из вакансии — название, компания, город, уровень,
+        формат, навыки и описание. Имя, почта и идентификаторы не передаются.
+
+        Лимит — `COVER_LETTER_LIMIT_PER_HOUR` писем в час на пользователя (по умолчанию 10)
+        и одно одновременно; при превышении — 429 `rate_limited` с заголовком `Retry-After`.
+      responses:
+        "200":
+          description: Письмо составлено
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CoverLetter" }
+              example:
+                cover_letter: |-
+                  Здравствуйте!
+
+                  Меня заинтересовала вакансия разработчика на Go в компании Ромашка...
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429":
+          description: |
+            Исчерпан лимит пользователя (`rate_limited`, есть `Retry-After` в секундах)
+            или провайдер модели ограничил частоту (`letter_provider_limited`)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+              example: { error: { code: rate_limited, message: "Слишком много писем подряд, попробуйте позже" } }
+        "502":
+          description: Провайдер модели вернул ошибку или негодный ответ (`letter_provider_error`)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+              example: { error: { code: letter_provider_error, message: "Не удалось составить письмо, попробуйте ещё раз" } }
+        "503":
+          description: Составление писем выключено — на сервере не задан `ZAI_API_KEY` (`letter_service_unavailable`)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+              example: { error: { code: letter_service_unavailable, message: Составление писем временно недоступно } }
+        "504":
+          description: Модель не ответила за отведённое время (`letter_provider_timeout`)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+              example: { error: { code: letter_provider_timeout, message: "Модель не успела ответить, попробуйте ещё раз" } }
+
+  /vacancies/{id}/cover-letter/prompt:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    get:
+      tags: [letters]
+      operationId: getCoverLetterPrompt
+      summary: Готовый промт письма для внешней нейросети
+      description: |
+        Тот же текст, что сервер отправляет модели (правила, профиль вошедшего пользователя
+        и вакансия из каталога), одним блоком — чтобы вставить его в любую нейросеть,
+        если `POST /vacancies/{id}/cover-letter` не сработал. Модель не вызывается,
+        лимит писем не расходуется, ключ Z.AI не нужен.
+      responses:
+        "200":
+          description: Промт
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CoverLetterPrompt" }
+              example:
+                prompt: |-
+                  Ты карьерный консультант. Составь правдивое персональное сопроводительное письмо...
+
+                  <candidate>
+                  Навыки: Go, PostgreSQL
+                  </candidate>
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
   /letters/{id}:
     parameters:
       - $ref: "#/components/parameters/Id"
@@ -919,6 +1008,15 @@ components:
           type: array
           description: Полный список навыков профиля (заменяет прежний)
           items: { type: integer, format: int64 }
+        skill_names:
+          type: array
+          maxItems: 50
+          description: |
+            Навыки, отмеченные пользователем, по названию (полный список, заменяет прежний).
+            Пока нет справочника `/skills`, это основной способ сохранить навыки.
+            В ответе `GET /me` они приходят в `profile.skills`, `id` — порядковый номер.
+            Эти навыки получает языковая модель при составлении письма.
+          items: { type: string, minLength: 1, maxLength: 60 }
 
     ResumeUploadResponse:
       type: object
@@ -1109,6 +1207,22 @@ components:
           description: Фрагменты, которых нет в портфолио — подсвечиваются в редакторе
           items: { $ref: "#/components/schemas/TextFragment" }
         updated_at: { type: string, format: date-time }
+
+    CoverLetter:
+      type: object
+      required: [cover_letter]
+      properties:
+        cover_letter:
+          type: string
+          minLength: 1
+          maxLength: 3000
+          description: Текст письма без Markdown, абзацы разделены пустой строкой
+
+    CoverLetterPrompt:
+      type: object
+      required: [prompt]
+      properties:
+        prompt: { type: string, minLength: 1, description: Готовый текст для вставки в нейросеть }
 
     LetterPatch:
       type: object

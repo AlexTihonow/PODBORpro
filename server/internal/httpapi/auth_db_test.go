@@ -215,3 +215,33 @@ func TestMeDeletedUser(t *testing.T) {
 		}
 	}
 }
+
+func TestProfileSkillNames(t *testing.T) {
+	srv := newDBServer(t)
+	tok := register(t, srv, ivan)
+
+	resp, body := do(t, srv, "PATCH", "/api/v1/me", tok, `{"skill_names": [" Go ", "PostgreSQL", "go", "", "Docker  Compose"]}`)
+	if resp.StatusCode != 200 {
+		t.Fatalf("%d %s", resp.StatusCode, body)
+	}
+	var me api.Me
+	must(t, json.Unmarshal(body, &me))
+	var names []string
+	for _, s := range me.Profile.Skills {
+		names = append(names, s.Name)
+	}
+	if strings.Join(names, "|") != "Go|PostgreSQL|Docker Compose" || me.Profile.Skills[0].Id != 1 {
+		t.Fatalf("навыки: %+v", me.Profile.Skills)
+	}
+
+	// Без skill_names навыки не трогаются.
+	resp, body = do(t, srv, "PATCH", "/api/v1/me", tok, `{"target_title": "Go-разработчик"}`)
+	if resp.StatusCode != 200 || !strings.Contains(string(body), `"name":"PostgreSQL"`) {
+		t.Fatalf("%d %s", resp.StatusCode, body)
+	}
+
+	resp, body = do(t, srv, "PATCH", "/api/v1/me", tok, `{"skill_names": ["`+strings.Repeat("я", 61)+`"]}`)
+	if resp.StatusCode != 400 || errorCode(t, body) != "validation_error" {
+		t.Fatalf("длинный навык: %d %s", resp.StatusCode, body)
+	}
+}

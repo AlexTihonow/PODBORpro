@@ -88,6 +88,9 @@ type statusRecorder struct {
 	status int
 }
 
+// Unwrap нужен http.ResponseController (продление записи для долгих запросов).
+func (r *statusRecorder) Unwrap() http.ResponseWriter { return r.ResponseWriter }
+
 func (r *statusRecorder) WriteHeader(code int) {
 	r.status = code
 	r.ResponseWriter.WriteHeader(code)

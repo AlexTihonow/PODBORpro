@@ -29,6 +29,8 @@ var requiredOperations = []string{
 	"GET /vacancies/{id}",
 	"GET /feed",
 	"POST /vacancies/{id}/letters",
+	"POST /vacancies/{id}/cover-letter",
+	"GET /vacancies/{id}/cover-letter/prompt",
 	"GET /letters/{id}",
 	"PATCH /letters/{id}",
 	"GET /letters/{id}/versions",
