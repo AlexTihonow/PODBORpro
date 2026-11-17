@@ -22,3 +22,6 @@ scraper/data/
 server/api/types.gen.go
 
 web/404.html
+
+.env.*
+!.env.example

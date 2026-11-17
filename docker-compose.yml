@@ -6,7 +6,7 @@ services:
       POSTGRES_PASSWORD: podbor
       POSTGRES_DB: podbor
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -31,7 +31,7 @@ services:
         condition: service_started
     environment:
       DATABASE_URL: postgres://podbor:podbor@db:5432/podbor?sslmode=disable
-      JWT_SECRET: ${JWT_SECRET:-dev-secret-dev-secret-dev-secret-dev}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
       ML_URL: http://ml:8000
       # Ключ Z.AI берётся из файла .env рядом с этим файлом (он в .gitignore).
       # Сюда значение не вписывать.
