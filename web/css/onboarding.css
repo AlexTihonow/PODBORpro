@@ -292,3 +292,43 @@
 .toggle--on:hover {
   color: #fff;
 }
+
+/* Hierarchical direction picker: each chosen direction opens a nested branch. */
+.tag-tree {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.tag-tree:empty {
+  display: none;
+}
+
+.tag-tree .field__hint {
+  margin: -4px 0 0;
+}
+
+.tag-tree__branch {
+  display: grid;
+  gap: 8px;
+  padding: 4px 0 4px 14px;
+  border-left: 2px solid var(--brand-200);
+}
+
+.tag-tree__title {
+  color: var(--ink-subtle);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.toggle__count {
+  font-size: 11px;
+  font-weight: 600;
+  opacity: 0.6;
+}
+
+.toggle--sm {
+  padding: 5px 11px;
+  font-size: 12px;
+}

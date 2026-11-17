@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"math/rand/v2"
 	"net/http"
 	"net/url"
@@ -43,6 +44,7 @@ type Options struct {
 	Render     Renderer
 	HTTP       *http.Client
 	Sleep      func(ctx context.Context, d time.Duration) error
+	Log        *slog.Logger
 }
 
 const maxBody = 15 << 20
@@ -71,6 +73,9 @@ func New(opt Options) *Client {
 	}
 	if opt.Sleep == nil {
 		opt.Sleep = sleep
+	}
+	if opt.Log == nil {
+		opt.Log = slog.New(slog.DiscardHandler)
 	}
 	c := &Client{opt: opt, robots: map[string]*Robots{}}
 	hc := http.Client{Timeout: opt.Timeout}
@@ -174,21 +179,28 @@ func (c *Client) Get(ctx context.Context, rawURL string) (Response, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if !c.allowed(ctx, u) {
+		c.opt.Log.Debug("запрещено robots.txt", "url", rawURL)
 		return Response{}, ErrDisallowed
 	}
 
+	log := c.opt.Log
 	var lastErr error
 	for attempt := range c.opt.Retries {
 		if attempt > 0 {
-			if err := c.opt.Sleep(ctx, time.Duration(attempt)*10*time.Second); err != nil {
+			wait := time.Duration(attempt) * 10 * time.Second
+			log.Warn("повтор запроса", "url", rawURL, "attempt", attempt+1, "of", c.opt.Retries, "wait", wait.String(), "err", lastErr)
+			if err := c.opt.Sleep(ctx, wait); err != nil {
 				return Response{}, err
 			}
 		}
 		if err := c.pause(ctx); err != nil {
 			return Response{}, err
 		}
+		started := time.Now()
 		resp, retryAfter, err := c.do(ctx, rawURL)
 		c.last = time.Now()
+		log.Debug("запрос", "url", rawURL, "status", resp.Status, "bytes", len(resp.Body),
+			"took", c.last.Sub(started).Round(time.Millisecond).String(), "err", err)
 		switch {
 		case errors.Is(err, ErrBlocked), errors.Is(err, ErrDisallowed), ctx.Err() != nil:
 			return Response{}, err
@@ -201,17 +213,20 @@ func (c *Client) Get(ctx context.Context, rawURL string) (Response, error) {
 			if retryAfter == 0 {
 				retryAfter = c.opt.RetryAfter
 			}
+			log.Warn("сайт просит подождать", "url", rawURL, "status", resp.Status, "wait", retryAfter.String())
 			if err := c.opt.Sleep(ctx, retryAfter); err != nil {
 				return Response{}, err
 			}
 			c.last = time.Now()
 			return Response{}, ErrRateLimited
 		case resp.Status == http.StatusForbidden:
+			log.Warn("доступ закрыт", "url", rawURL, "status", resp.Status)
 			return Response{}, ErrBlocked
 		case resp.Status >= 500:
 			lastErr = fmt.Errorf("ответ %d", resp.Status)
 			continue
 		case IsCaptcha(resp.Body):
+			log.Warn("проверка «не робот»", "url", rawURL)
 			return Response{}, ErrBlocked
 		}
 		return resp, nil

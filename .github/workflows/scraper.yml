@@ -6,12 +6,33 @@ on:
     paths: ["scraper/**", ".github/workflows/scraper.yml"]
   pull_request:
     paths: ["scraper/**", ".github/workflows/scraper.yml"]
+  workflow_dispatch:
+    inputs:
+      command:
+        description: "Этап скрепера"
+        type: choice
+        options: [all, links, fetch, tag, push, export]
+        default: all
+      profile:
+        description: "Профиль"
+        type: choice
+        options: [normal, bootstrap]
+        default: normal
+      limit:
+        description: "fetch: не больше стольких страниц (0 — без ограничения)"
+        default: "50"
+      log_level:
+        description: "Уровень логов"
+        type: choice
+        options: [info, debug, warn, error]
+        default: info
 
 permissions:
   contents: read
 
 jobs:
   go:
+    if: github.event_name != 'workflow_dispatch'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -31,3 +52,35 @@ jobs:
 
       - name: go test
         run: go test -race ./...
+
+  run:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    defaults:
+      run:
+        working-directory: scraper
+    env:
+      LOG_LEVEL: ${{ inputs.log_level }}
+      LAYA_URL: ${{ vars.LAYA_URL }}
+      PODBOR_URL: ${{ vars.PODBOR_URL }}
+      IMPORT_TOKEN: ${{ secrets.IMPORT_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: scraper/go.mod
+          cache-dependency-path: scraper/go.sum
+
+      - name: scraper ${{ inputs.command }}
+        run: go run ./cmd/scraper "${{ inputs.command }}" -profile "${{ inputs.profile }}" -limit "${{ inputs.limit }}"
+
+      - name: data
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scraper-data
+          path: |
+            scraper/data/*.json
+            web/data/vacancies.json
+          if-no-files-found: ignore

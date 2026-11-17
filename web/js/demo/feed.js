@@ -1,5 +1,5 @@
 import { clone } from "./util.js";
-import { listVacancies, loadCatalog, skillKey, toCard } from "./catalog.js";
+import { listVacancies, loadCatalog, skillKey, tagMatches, toCard } from "./catalog.js";
 
 const GRADES = ["intern", "junior", "middle", "senior", "lead"];
 const WEIGHTS = { similarity: 0.35, skills: 0.35, grade: 0.15, freshness: 0.15 };
@@ -48,9 +48,11 @@ function rank(vacancy, profile, now) {
   ]);
   const missing = names.filter((name) => !wanted.has(normalize(name))).slice(0, 4);
   const gradeFit = compareGrades(vacancy.grade, profile.target_grade);
+  // A vacancy inside a chosen direction (Backend / Go) fits the target as well as a title match.
+  const inDirection = tagMatches(vacancy.tags, chosenDirections(profile.tags));
 
   const parts = {
-    similarity: similarity(profile.target_title, vacancy),
+    similarity: inDirection ? 1 : similarity(profile.target_title, vacancy),
     skills: wanted.size === 0 ? 0 : matched.length / Math.min(wanted.size, Math.max(names.length, 1)),
     grade: { match: 1, lower: 0.6, higher: 0.4, unknown: 0.5 }[gradeFit],
     freshness: freshness(vacancy.published_at, now),
@@ -61,6 +63,7 @@ function rank(vacancy, profile, now) {
     vacancy: toCard(vacancy),
     score: round(score),
     explanation: {
+      in_direction: inDirection,
       matched_skills: matched,
       missing_skills: missing,
       grade_fit: gradeFit,
@@ -73,10 +76,16 @@ function rank(vacancy, profile, now) {
 // profile. The target title alone admits only vacancies that have no skill list to compare,
 // and is the only criterion when the profile has no skills selected.
 function isRelevant(vacancy, item, profile) {
-  const { matched_skills: matched, parts } = item.explanation;
-  if (matched.length > 0) return true;
+  const { matched_skills: matched, parts, in_direction: inDirection } = item.explanation;
+  if (matched.length > 0 || inDirection) return true;
   const hasProfileSkills = (profile.skills ?? []).length > 0;
   return parts.similarity > 0 && (!hasProfileSkills || vacancy.skills.length === 0);
+}
+
+// Only the most specific choices count: picking Backend and then Go means "Go", not all of Backend.
+function chosenDirections(tags) {
+  const list = tags ?? [];
+  return list.filter((path) => !list.some((other) => other.startsWith(`${path}/`)));
 }
 
 function hasSkillMatch(item) {

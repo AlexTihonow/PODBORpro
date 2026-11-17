@@ -1,4 +1,4 @@
-import { listSkillNames, patchMe, skillKey } from "../../api/index.js";
+import { listSkillNames, listTagTree, patchMe, skillKey } from "../../api/index.js";
 import { navigate } from "../../core/router.js";
 import { getProfile, setProfile } from "../../core/session.js";
 import { mountShell } from "../../ui/shell.js";
@@ -30,6 +30,9 @@ export function renderOnboardingPage() {
     skillOptions: FALLBACK_SKILLS.map((name) => ({ name, count: 0 })),
     skillQuery: "",
     showAllSkills: false,
+    // Directions from the ml tag tree ("it/backend/go"); a chosen node opens its children.
+    tags: new Set(getProfile()?.tags ?? []),
+    tagTree: [],
     targetTitle: "Разработчик на Go",
     grade: "junior",
     cities: "Москва",
@@ -104,7 +107,10 @@ export function renderOnboardingPage() {
         </div>
       </div>
 
+      <div class="tag-tree" data-tag-tree>${tagTree()}</div>
+
       <div class="skill-picker">
+        <span class="field__label">Все навыки</span>
         <label class="skill-picker__search">
           ${icon("search")}
           <input class="input" type="search" data-skill-query value="${esc(state.skillQuery)}"
@@ -158,10 +164,65 @@ export function renderOnboardingPage() {
     return toggles.join("") || `<span class="field__hint">Ничего не нашлось</span>`;
   }
 
+  // Direction → subdirection → skills. A chosen direction opens its subdirections; the
+  // most specific chosen node shows the skills its vacancies ask for most often.
+  function tagTree() {
+    if (state.tagTree.length === 0) return "";
+    return `<span class="field__label">Направления</span>
+      <p class="field__hint">Выберите направление — откроются специализации и типичные навыки.</p>
+      ${tagRow(state.tagTree)}
+      ${state.tagTree.filter((node) => state.tags.has(node.path)).map((node) => tagBranch(node, node.label)).join("")}`;
+  }
+
+  function tagRow(nodes) {
+    return `<div class="toggle-list">${nodes
+      .map((node) => {
+        const on = state.tags.has(node.path);
+        return `<button class="toggle${on ? " toggle--on" : ""}" type="button" data-tag="${esc(node.path)}" aria-pressed="${on}">
+          ${on ? icon("check") : icon("plus")} ${esc(node.label)} <span class="toggle__count">${node.count}</span>
+        </button>`;
+      })
+      .join("")}</div>`;
+  }
+
+  function tagBranch(node, title) {
+    const open = node.children.filter((child) => state.tags.has(child.path));
+    const skills = open.length === 0 ? node.skills : [];
+    return `<div class="tag-tree__branch">
+      <span class="tag-tree__title">${esc(title)}</span>
+      ${node.children.length > 0 ? tagRow(node.children) : ""}
+      ${skills.length > 0 ? `<div class="toggle-list tag-tree__skills">${skills.map(skillToggle).join("")}</div>` : ""}
+      ${open.map((child) => tagBranch(child, `${title} / ${child.label}`)).join("")}
+    </div>`;
+  }
+
+  function skillToggle(name) {
+    const chosen = [...state.skills].find((skill) => skillKey(skill) === skillKey(name));
+    return `<button class="toggle toggle--sm${chosen ? " toggle--on" : ""}" type="button" data-skill="${esc(chosen ?? name)}">
+      ${chosen ? icon("check") : icon("plus")} ${esc(chosen ?? name)}
+    </button>`;
+  }
+
+  function toggleTag(path) {
+    if (!state.tags.has(path)) {
+      state.tags.add(path);
+      return;
+    }
+    // Closing a direction closes everything under it.
+    for (const tag of [...state.tags]) {
+      if (tag === path || tag.startsWith(`${path}/`)) state.tags.delete(tag);
+    }
+  }
+
   // Re-render only the list so the search field keeps focus while typing.
   function drawSkillList() {
     const list = main.querySelector("[data-skill-list]");
     if (list) list.innerHTML = skillToggles();
+  }
+
+  function drawTagTree() {
+    const tree = main.querySelector("[data-tag-tree]");
+    if (tree) tree.innerHTML = tagTree();
   }
 
   function toggleSkill(name) {
@@ -261,6 +322,17 @@ export function renderOnboardingPage() {
       else if (button.matches("[data-skill-add]")) addTypedSkill();
       else if (button.matches("[data-skill-more]")) state.showAllSkills = !state.showAllSkills;
       drawSkillList();
+      drawTagTree();
+    });
+
+    main.querySelector("[data-tag-tree]")?.addEventListener("click", (event) => {
+      const button = event.target.closest("button");
+      if (!button) return;
+      if (button.matches("[data-tag]")) toggleTag(button.dataset.tag);
+      else if (button.matches("[data-skill]")) toggleSkill(button.dataset.skill);
+      else return;
+      drawTagTree();
+      drawSkillList();
     });
 
     const skillQuery = main.querySelector("[data-skill-query]");
@@ -315,11 +387,13 @@ export function renderOnboardingPage() {
         tone: state.tone,
         resume_status: state.fileName ? "ready" : "none",
         skills: [...state.skills].map((name, index) => ({ id: 100 + index, name })),
+        tags: [...state.tags],
       };
 
       try {
         // Сервер хранит навыки по названию (skill_names): по ним составляется письмо.
-        await patchMe({ ...profile, skill_names: profile.skills.map((skill) => skill.name) });
+        const { tags, ...serverProfile } = profile;
+        await patchMe({ ...serverProfile, skill_names: profile.skills.map((skill) => skill.name) });
       } catch {}
       setProfile(profile);
       navigate("/feed");
@@ -400,6 +474,13 @@ export function renderOnboardingPage() {
       if (options.length === 0) return;
       state.skillOptions = options;
       if (state.step === 1) drawSkillList();
+    })
+    .catch(() => {});
+
+  listTagTree()
+    .then((tree) => {
+      state.tagTree = tree;
+      if (state.step === 1) drawTagTree();
     })
     .catch(() => {});
 }

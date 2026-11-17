@@ -4,7 +4,7 @@ import { requestHttp } from "./http.js";
 
 export { ApiError } from "./error.js";
 export { getCachedFeedItem } from "../demo/feed.js";
-export { listSkillNames, skillKey } from "../demo/catalog.js";
+export { listSkillNames, listTagTree, skillKey } from "../demo/catalog.js";
 
 function request(method, path, body, options) {
   return shouldUseStubs() ? requestDemo(method, path, body) : requestHttp(method, path, body, options);

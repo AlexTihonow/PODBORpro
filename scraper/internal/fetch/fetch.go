@@ -50,11 +50,15 @@ type Stats struct {
 	Errors     int
 }
 
+// ProgressEvery — через сколько обработанных страниц писать промежуточный итог.
+const ProgressEvery = 25
+
 func Run(ctx context.Context, st *data.Store, src sources.Source, get sources.Getter, opt Options, log *slog.Logger) (Stats, error) {
-	f := &fetcher{st: st, src: src, get: get, opt: opt}
+	log = log.With("source", src.Code())
+	f := &fetcher{st: st, src: src, get: get, opt: opt, log: log}
 	err := f.run(ctx)
 	s := f.stats
-	log.Info("страницы", "source", src.Code(), "downloaded", s.Downloaded, "from_disk", s.FromDisk,
+	log.Info("страницы", "downloaded", s.Downloaded, "from_disk", s.FromDisk,
 		"created", s.Created, "updated", s.Updated, "unchanged", s.Unchanged, "gone", s.Gone,
 		"failed", s.Failed, "errors", s.Errors)
 	return s, err
@@ -65,8 +69,21 @@ type fetcher struct {
 	src    sources.Source
 	get    sources.Getter
 	opt    Options
+	log    *slog.Logger
 	stats  Stats
 	parsed int
+	done   int
+	total  int
+}
+
+func (f *fetcher) progress() {
+	f.done++
+	if f.done%ProgressEvery != 0 && f.done != f.total {
+		return
+	}
+	s := f.stats
+	f.log.Info("прогресс", "done", f.done, "of", f.total, "downloaded", s.Downloaded, "created", s.Created,
+		"updated", s.Updated, "gone", s.Gone, "failed", s.Failed, "errors", s.Errors)
 }
 
 func (f *fetcher) run(ctx context.Context) error {
@@ -83,13 +100,17 @@ func (f *fetcher) run(ctx context.Context) error {
 			return err
 		}
 	}
-	for _, l := range f.st.Pending(f.src.Code()) {
+	pending := f.st.Pending(f.src.Code())
+	f.total = len(pending)
+	f.log.Info("скачивание вакансий", "pending", f.total)
+	for _, l := range pending {
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
 		if err := f.one(ctx, l); err != nil {
 			return err
 		}
+		f.progress()
 	}
 	return nil
 }
@@ -130,20 +151,24 @@ func (f *fetcher) download(ctx context.Context, l sources.Link) (body []byte, do
 	case errors.Is(err, httpx.ErrDisallowed):
 		f.stats.Errors++
 		f.st.AddError("fetch", l.Source, l.URL, err)
+		f.log.Warn("страница запрещена robots.txt", "url", l.URL)
 		return nil, true, f.st.RemoveLink(l.Key())
 	default:
 		f.stats.Errors++
 		f.st.AddError("fetch", l.Source, l.URL, err)
+		f.log.Warn("не скачалась", "url", l.URL, "err", err)
 		return nil, true, nil
 	}
 	f.stats.Downloaded++
 	if f.src.IsGone(resp.Status, resp.Body) {
 		f.stats.Gone++
+		f.log.Debug("вакансия снята", "url", l.URL)
 		return nil, true, f.st.RemoveLink(l.Key())
 	}
 	if resp.Status != http.StatusOK {
 		f.stats.Errors++
 		f.st.AddError("fetch", l.Source, l.URL, fmt.Errorf("ответ %d", resp.Status))
+		f.log.Warn("неожиданный ответ", "url", l.URL, "status", resp.Status)
 		return nil, true, nil
 	}
 	return resp.Body, false, nil
@@ -154,6 +179,7 @@ func (f *fetcher) parse(ctx context.Context, l sources.Link, path string, body [
 	if err != nil {
 		f.stats.Failed++
 		f.st.AddError("fetch", l.Source, l.URL, fmt.Errorf("разбор: %w", err))
+		f.log.Warn("не разобралась", "url", l.URL, "err", err)
 		if path != f.st.FailedPath(l) {
 			if err := os.Rename(path, f.st.FailedPath(l)); err != nil {
 				return err
@@ -165,6 +191,7 @@ func (f *fetcher) parse(ctx context.Context, l sources.Link, path string, body [
 	if err != nil {
 		return err
 	}
+	f.log.Debug("вакансия", "url", l.URL, "title", v.Title, "result", res)
 	switch res {
 	case data.Created:
 		f.stats.Created++
@@ -191,6 +218,7 @@ func (f *fetcher) retryFailed(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	f.log.Info("повторный разбор", "failed", len(links))
 	for _, l := range links {
 		path := f.st.FailedPath(l)
 		body, err := os.ReadFile(path)

@@ -131,3 +131,79 @@ export async function listSkillNames() {
   }
   return [...counts.values()].sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, "ru"));
 }
+
+const TAG_ROOT = "it";
+const TREE_SKILLS_SHOWN = 12;
+
+// The tag tree as the ml service labels it ("it/backend/go" → Backend → Go), built from
+// the catalog. Each node knows how many vacancies sit under it and which skills they ask for
+// most often, so the onboarding picker can go direction → subdirection → skills.
+export async function listTagTree() {
+  const root = { path: TAG_ROOT, label: "", count: 0, children: [], skills: [] };
+  const nodes = new Map([[TAG_ROOT, root]]);
+  const skillCounts = new Map();
+
+  const vacancies = await listVacancies();
+  // Full labels ("Data / ML / Data Science") as ml sent them; a label part may itself
+  // contain " / ", so a node's own name is its full label minus its parent's.
+  const fullLabels = new Map();
+  for (const vacancy of vacancies) {
+    for (const tag of vacancy.tags ?? []) if (tag.path && tag.label) fullLabels.set(tag.path, tag.label);
+  }
+  const fullLabelOf = (path, hint) => {
+    if (fullLabels.has(path)) return fullLabels.get(path);
+    const depth = path.split("/").length - 1;
+    return String(hint ?? "").split(" / ").slice(0, depth).join(" / ");
+  };
+
+  const nodeFor = (path, hint) => {
+    if (nodes.has(path)) return nodes.get(path);
+    const parentPath = path.slice(0, path.lastIndexOf("/"));
+    const full = fullLabelOf(path, hint);
+    const parent = nodeFor(parentPath, full);
+    const parentFull = parent === root ? "" : fullLabelOf(parentPath, full);
+    const own = parentFull && full.startsWith(`${parentFull} / `) ? full.slice(parentFull.length + 3) : full.split(" / ").at(-1);
+    const node = { path, label: own || path.split("/").at(-1), count: 0, children: [], skills: [] };
+    parent.children.push(node);
+    nodes.set(path, node);
+    return node;
+  };
+
+  for (const vacancy of vacancies) {
+    // A vacancy counts once per node even when several of its tags share an ancestor.
+    const under = new Set();
+    for (const tag of vacancy.tags ?? []) {
+      if (!tag.path?.startsWith(`${TAG_ROOT}/`)) continue;
+      nodeFor(tag.path, tag.label);
+      for (let path = tag.path; path.includes("/"); path = path.slice(0, path.lastIndexOf("/"))) under.add(path);
+    }
+    for (const path of under) {
+      nodes.get(path).count++;
+      const counts = skillCounts.get(path) ?? new Map();
+      for (const { name } of vacancy.skills) {
+        const key = skillKey(name);
+        const entry = counts.get(key) ?? { name, count: 0 };
+        entry.count++;
+        counts.set(key, entry);
+      }
+      skillCounts.set(path, counts);
+    }
+  }
+
+  for (const node of nodes.values()) {
+    node.children.sort((a, b) => b.count - a.count || a.label.localeCompare(b.label, "ru"));
+    node.skills = [...(skillCounts.get(node.path)?.values() ?? [])]
+      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, "ru"))
+      .slice(0, TREE_SKILLS_SHOWN)
+      .map((entry) => entry.name);
+  }
+  return root.children;
+}
+
+// True when a vacancy tag lies under one of the chosen paths ("it/backend" covers "it/backend/go").
+export function tagMatches(vacancyTags, chosen) {
+  if (!chosen?.length) return false;
+  return (vacancyTags ?? []).some((tag) =>
+    chosen.some((path) => tag.path === path || tag.path?.startsWith(`${path}/`)),
+  );
+}

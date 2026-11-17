@@ -120,6 +120,7 @@ func Push(ctx context.Context, st *data.Store, c *Client, run *Run, log *slog.Lo
 	}
 	pending := st.Vacancies(sources.Vacancy.NeedsPush)
 	s := Stats{Pending: len(pending)}
+	log.Info("отправка на сервер", "pending", len(pending), "url", c.URL)
 	defer func() {
 		log.Info("отправка", "pending", s.Pending, "created", s.Created, "updated", s.Updated,
 			"skipped", s.Skipped, "rejected", s.Rejected)
@@ -152,7 +153,10 @@ func Push(ctx context.Context, st *data.Store, c *Client, run *Run, log *slog.Lo
 			for _, r := range resp.Rejected {
 				rejected[r.ExternalID] = true
 				st.AddError("push", src, "", fmt.Errorf("%s: %s", r.ExternalID, r.Error))
+				log.Warn("сервер отклонил вакансию", "source", src, "id", r.ExternalID, "err", r.Error)
 			}
+			log.Info("пакет отправлен", "source", src, "done", start+len(batch), "of", len(vs),
+				"created", resp.Created, "updated", resp.Updated, "skipped", resp.Skipped, "rejected", len(resp.Rejected))
 			s.Rejected += len(rejected)
 			var keys []string
 			for _, v := range batch {

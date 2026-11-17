@@ -21,6 +21,7 @@ import (
 	"github.com/AlexTihonow/PODBORpro/scraper/internal/fetch"
 	"github.com/AlexTihonow/PODBORpro/scraper/internal/httpx"
 	"github.com/AlexTihonow/PODBORpro/scraper/internal/links"
+	"github.com/AlexTihonow/PODBORpro/scraper/internal/logx"
 	"github.com/AlexTihonow/PODBORpro/scraper/internal/push"
 	"github.com/AlexTihonow/PODBORpro/scraper/internal/sources"
 	"github.com/AlexTihonow/PODBORpro/scraper/internal/sources/habr"
@@ -62,7 +63,7 @@ func main() {
 	if err := fs.Parse(os.Args[2:]); err != nil {
 		os.Exit(2)
 	}
-	log := slog.New(slog.NewTextHandler(os.Stderr, nil))
+	log := logx.New(logx.FromEnv())
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	if err := run(ctx, cmd, f, log); err != nil {
@@ -144,7 +145,10 @@ func run(ctx context.Context, cmd string, f flags, log *slog.Logger) error {
 	if err != nil {
 		return err
 	}
+	log.Info("запуск", "command", cmd, "profile", f.profile, "data", f.dataDir, "limit", f.limit,
+		"laya", cfg.LayaURL, "push", cfg.PodborURL != "")
 	a := &app{f: f, cfg: cfg, st: st, log: log, start: time.Now().UTC(), bootstrap: f.profile == "bootstrap"}
+	defer func() { log.Info("готово", "took", time.Since(a.start).Round(time.Second).String()) }()
 	if cmd == "links" || cmd == "fetch" || cmd == "all" {
 		if err := a.openSites(); err != nil {
 			return err
@@ -160,12 +164,15 @@ func run(ctx context.Context, cmd string, f flags, log *slog.Logger) error {
 		a.stageFetch(ctx)
 		return a.collected(ctx)
 	case "tag":
+		defer logx.Group("tag")()
 		_, err := tag.Run(ctx, st, tag.NewClient(cfg.LayaURL), log)
 		return err
 	case "push":
+		defer logx.Group("push")()
 		_, err := push.Push(ctx, st, push.NewClient(cfg.PodborURL, cfg.ImportToken), nil, log)
 		return err
 	case "export":
+		defer logx.Group("export")()
 		return export.Run(st, f.exportPath, log)
 	}
 
@@ -174,9 +181,13 @@ func run(ctx context.Context, cmd string, f flags, log *slog.Logger) error {
 	if ctx.Err() != nil {
 		return ctx.Err()
 	}
+	endPush := logx.Group("tag + push")
 	pushErr := a.tagAndPush(ctx)
+	endPush()
 	collectErr := a.collected(ctx)
+	endExport := logx.Group("export")
 	exportErr := export.Run(st, f.exportPath, log)
+	endExport()
 	return errors.Join(collectErr, pushErr, exportErr)
 }
 
@@ -206,7 +217,8 @@ func (a *app) openSites() error {
 		if !ok {
 			return fmt.Errorf("sources.yaml: неизвестный источник %q", sc.Code)
 		}
-		opt := httpx.Options{UserAgent: a.cfg.UserAgent, PauseMin: a.cfg.Pause.Min, PauseMax: a.cfg.Pause.Max}
+		opt := httpx.Options{UserAgent: a.cfg.UserAgent, PauseMin: a.cfg.Pause.Min, PauseMax: a.cfg.Pause.Max,
+			Log: a.log.With("source", sc.Code)}
 		if a.browser != nil && (a.f.browser || sc.Render == "browser") {
 			opt.Render = a.browser.Tab()
 		}
@@ -268,6 +280,7 @@ func reason(err error) string {
 }
 
 func (a *app) stageLinks(ctx context.Context) {
+	defer logx.Group("links")()
 	a.eachSite(ctx, func(s *site) error {
 		stats, err := links.Run(ctx, a.st, s.src, a.cfg.Queries(s.cfg, a.bootstrap), a.bootstrap, a.log)
 		a.siteMu.Lock()
@@ -278,6 +291,7 @@ func (a *app) stageLinks(ctx context.Context) {
 }
 
 func (a *app) stageFetch(ctx context.Context) {
+	defer logx.Group("fetch")()
 	opt := fetch.Options{Limit: fetch.NewLimit(a.f.limit), RetryFailed: a.f.retryFailed}
 	if a.f.refetch {
 		d, err := parseSince(a.f.since)
@@ -342,6 +356,7 @@ func (a *app) collected(ctx context.Context) error {
 	if ctx.Err() != nil {
 		return ctx.Err()
 	}
+	defer logx.Group("итог")()
 	ok := 0
 	for _, s := range a.sites {
 		if s.attempted {

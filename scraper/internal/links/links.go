@@ -29,7 +29,9 @@ func Run(ctx context.Context, st *data.Store, src sources.Source, queries []sour
 		return s, err
 	}
 	s.Pruned = n
-	for _, q := range queries {
+	log = log.With("source", src.Code())
+	log.Info("сбор ссылок", "queries", len(queries), "pruned", n)
+	for i, q := range queries {
 		if ctx.Err() != nil {
 			return s, ctx.Err()
 		}
@@ -42,6 +44,7 @@ func Run(ctx context.Context, st *data.Store, src sources.Source, queries []sour
 		s.Found += len(found)
 		added, serr := st.AddLinks(found)
 		s.Added += added
+		log.Info("запрос", "n", i+1, "of", len(queries), "url", q.URL, "found", len(found), "added", added)
 		if serr != nil {
 			return s, serr
 		}
@@ -53,12 +56,14 @@ func Run(ctx context.Context, st *data.Store, src sources.Source, queries []sour
 		case errors.Is(err, httpx.ErrDisallowed):
 			s.Disallowed++
 			st.AddError("links", src.Code(), q.URL, err)
+			log.Warn("запрос запрещён robots.txt", "url", q.URL)
 		default:
 			s.Errors++
 			st.AddError("links", src.Code(), q.URL, err)
+			log.Warn("ошибка запроса", "url", q.URL, "err", err)
 		}
 	}
-	log.Info("ссылки", "source", src.Code(), "queries", s.Queries, "found", s.Found, "added", s.Added,
+	log.Info("ссылки", "queries", s.Queries, "found", s.Found, "added", s.Added,
 		"pruned", s.Pruned, "disallowed", s.Disallowed, "errors", s.Errors)
 	return s, nil
 }

@@ -233,6 +233,16 @@ const (
 	Unchanged
 )
 
+func (u Upsert) String() string {
+	switch u {
+	case Created:
+		return "created"
+	case Updated:
+		return "updated"
+	}
+	return "unchanged"
+}
+
 func (s *Store) PutVacancy(v sources.Vacancy) (Upsert, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

@@ -93,6 +93,9 @@ type Stats struct {
 func Run(ctx context.Context, st *data.Store, c *Client, log *slog.Logger) (Stats, error) {
 	pending := st.Vacancies(sources.Vacancy.NeedsTagging)
 	s := Stats{Pending: len(pending)}
+	if len(pending) > 0 {
+		log.Info("разметка в ml", "pending", len(pending), "url", c.URL)
+	}
 	defer func() {
 		log.Info("разметка", "pending", s.Pending, "tagged", s.Tagged, "missing", s.Missing)
 	}()
@@ -111,6 +114,7 @@ func Run(ctx context.Context, st *data.Store, c *Client, log *slog.Logger) (Stat
 			}
 			byID[v.Key()] = v
 		}
+		started := time.Now()
 		r, err := c.classify(ctx, items)
 		if err != nil {
 			return s, err
@@ -138,6 +142,8 @@ func Run(ctx context.Context, st *data.Store, c *Client, log *slog.Logger) (Stat
 			return s, err
 		}
 		s.Tagged += len(keys)
+		log.Info("пакет размечен", "done", start+len(batch), "of", len(pending), "tagged", len(keys),
+			"model", r.Model, "took", time.Since(started).Round(time.Millisecond).String())
 	}
 	return s, nil
 }
